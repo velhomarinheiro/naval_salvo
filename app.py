@@ -1,6 +1,8 @@
-from __future__ import annotations
-
+from pathlib import Path
 import streamlit as st
+
+BASE_DIR = Path(__file__).resolve().parent
+PAGES_DIR = BASE_DIR / "pages"
 
 st.set_page_config(
     page_title="Equação de Salva Multidomínio",
@@ -9,21 +11,27 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.title("⚓ Calculadora de Equação de Salva Multidomínio")
-st.markdown(
-    """
-    Aplicação Streamlit para explorar o pacote `naval_salvo`:
+# Diagnóstico temporário
+if not PAGES_DIR.exists():
+    st.error(f"Pasta pages não encontrada em: {PAGES_DIR}")
+    st.write("Arquivos encontrados na raiz:")
+    st.write([p.name for p in BASE_DIR.iterdir()])
+    st.stop()
 
-    - modelo clássico de Hughes (1995);
-    - reprodução JPH/Coronel;
-    - cenário multidomínio da Bacia de Campos;
-    - análise cibernética e validação numérica.
+st.sidebar.success("Menu carregado")
 
-    Use o menu lateral para navegar pelas páginas.
-    """
-)
+pages = {
+    "Modelo": [
+        st.Page(PAGES_DIR / "1_Hughes.py", title="Hughes 1995", icon="⚓"),
+        st.Page(PAGES_DIR / "2_Coronel.py", title="JPH / Coronel", icon="📘"),
+        st.Page(PAGES_DIR / "3_Bacia_de_Campos.py", title="Bacia de Campos", icon="🌊"),
+        st.Page(PAGES_DIR / "4_Cyber.py", title="Cyber", icon="🛰️"),
+    ],
+    "Validação": [
+        st.Page(PAGES_DIR / "5_Validacao.py", title="Validação", icon="✅"),
+        st.Page(PAGES_DIR / "6_Sobre.py", title="Sobre", icon="ℹ️"),
+    ],
+}
 
-st.info(
-    "Esta versão foi reorganizada para deploy no Streamlit Community Cloud: "
-    "o pacote local `naval_salvo/` fica na raiz, e as páginas ficam na pasta `pages/`."
-)
+pg = st.navigation(pages, position="sidebar")
+pg.run()
