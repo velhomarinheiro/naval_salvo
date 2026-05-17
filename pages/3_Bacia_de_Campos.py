@@ -83,14 +83,14 @@ class ShipClassInputs:
 
     Os campos ``p_off`` e ``p_def`` representam o **poder bruto** da
     plataforma — antes de aplicar os fatores compostos. Na construção
-    da matriz de engajamento, o poder ofensivo efetivo é
+    da matriz de engajamento, o poder ofensivo/defensivo efetivo é
 
-        p_off_efetivo = p_off × scouting × treinamento × distração_alvo
+        p_off_efetivo = p_off × scouting × treinamento
         p_def_efetivo = p_def × treinamento × alerta
 
-    onde *distração_alvo* é o (1 − alerta) do defensor: um defensor
-    distraído (alerta baixo) é mais fácil de acertar. Esta decomposição
-    segue JPH 2001 eq. 2.18.
+    Os fatores do atacante são aplicados ao p_off; os do defensor, ao
+    p_def. Não há acoplamento cruzado (alerta do alvo não afeta o
+    ataque do oponente). Esta decomposição segue JPH 2001 eq. 2.18.
     """
 
     name: str
@@ -114,36 +114,37 @@ CYBER_DEFAULT_P_DEF = 0.2
 
 # ---------------------------------------------------------------------------
 # Defaults editáveis no formulário -- valores "Bacia de Campos" do paper.
-# Para os fatores compostos, default = 1.0 (efeito neutro), exceto onde a
-# doutrina sugere outra coisa.
+# Os fatores compostos (scouting, treinamento, alerta) ficam em 1.0 por
+# default (efeito neutro). O usuário ajusta caso queira modelar fricção
+# operacional, vantagem doutrinária, surpresa, etc.
 # ---------------------------------------------------------------------------
 
 BLUE_DEFAULTS = {
     # 2 tipos de superfície: fragata principal + corveta/patrulha leve
     "surface_1": ShipClassInputs("Fragata classe A", 2, 3.0, 1.5, 1.0,
-                                  scouting=0.9, training=0.9, alert=0.8),
+                                  scouting=1.0, training=1.0, alert=1.0),
     "surface_2": ShipClassInputs("Corveta/Patrulha", 2, 2.0, 1.0, 0.6,
-                                  scouting=0.7, training=0.7, alert=0.7),
+                                  scouting=1.0, training=1.0, alert=1.0),
     "submarine": ShipClassInputs("Submarino convencional", 1, 2.0, 2.0, 0.0,
-                                  scouting=0.6, training=0.9, alert=0.9),
+                                  scouting=1.0, training=1.0, alert=1.0),
     "strike_air": ShipClassInputs("Aviação de ataque Azul", 0, 1.0, 1.8, 0.3,
-                                   scouting=0.8, training=0.8, alert=0.7),
+                                   scouting=1.0, training=1.0, alert=1.0),
     "coastal":   ShipClassInputs("Bateria costeira", 1, 4.0, 1.2, 0.4,
-                                  scouting=0.8, training=0.8, alert=0.9),
+                                  scouting=1.0, training=1.0, alert=1.0),
     # FPSO: ativo de valor, alta staying, sem poder ofensivo.
     "fpso":      ShipClassInputs("FPSO (Pré-Sal)", 4, 6.0, 0.0, 0.0,
-                                  scouting=0.0, training=0.0, alert=0.2),
+                                  scouting=1.0, training=1.0, alert=1.0),
 }
 
 RED_DEFAULTS = {
     "surface_1":   ShipClassInputs("Destróier", 2, 4.0, 2.5, 1.5,
-                                    scouting=0.9, training=0.9, alert=0.8),
+                                    scouting=1.0, training=1.0, alert=1.0),
     "surface_2":   ShipClassInputs("Fragata adv.", 2, 3.0, 1.8, 1.0,
-                                    scouting=0.8, training=0.8, alert=0.7),
+                                    scouting=1.0, training=1.0, alert=1.0),
     "submarine":   ShipClassInputs("Submarino adversário", 0, 2.0, 2.0, 0.0,
-                                    scouting=0.6, training=0.8, alert=0.9),
+                                    scouting=1.0, training=1.0, alert=1.0),
     "strike_air":  ShipClassInputs("Aviação de ataque Vermelha", 4, 1.0, 2.0, 0.3,
-                                    scouting=0.8, training=0.8, alert=0.7),
+                                    scouting=1.0, training=1.0, alert=1.0),
 }
 
 
@@ -291,9 +292,8 @@ def _ship_class_inputs(
             "Alerta (α_alert)", min_value=0.0, max_value=1.0,
             value=float(defaults.alert), step=0.05,
             key=f"{key_prefix}_alert",
-            help="Nível de alerta defensivo. Aumenta p_def desta unidade "
-                 "e, simetricamente, diminui a vulnerabilidade dela à "
-                 "distração quando atacada (distração_alvo = 1 − alerta)."
+            help="Nível de alerta defensivo. Aplicado apenas ao p_def "
+                 "desta unidade (multiplica o poder defensivo)."
         )
 
         return ShipClassInputs(
@@ -551,18 +551,18 @@ red_unit_types,  red_role_to_name  = _materialize_force(red_resolved,  red_cyber
 #
 #   p_off[atk → def] = atk.p_off
 #                     × atk.scouting               (σ_scout)
-#                     × atk.training               (τ_train)
-#                     × (1 - def.alert)            (ρ_distract = 1 - alvo.alerta)
+#                     × atk.training               (τ_train do atacante)
 #
 #   p_def[atk → def] = def.p_def
-#                     × def.training               (τ_train)
-#                     × def.alert                  (α_alert)
+#                     × def.training               (τ_train do defensor)
+#                     × def.alert                  (α_alert do defensor)
 #
 # A interpretação dos fatores:
 #  - scouting (atacante): fração do tempo com cueing válido sobre o alvo.
-#  - training: eficácia média do operador, aplicada em ambos os lados.
-#  - alert (defensor): aumenta a defesa; sua complementar (1 - alert)
-#    é o "distração" que aumenta a vulnerabilidade do alvo.
+#  - training: eficácia média do operador, aplicada separadamente em
+#    cada lado (atacante usa o seu próprio; defensor usa o dele).
+#  - alert (defensor): nível de alerta defensivo — aumenta o p_def,
+#    sem dupla contagem do outro lado.
 #
 # Exceções estruturais:
 #   submarino → aeronave : 0  (admissibilidade nula)
@@ -585,15 +585,13 @@ def _make_defaults(
                 p_off[key] = 0.0
                 p_def[key] = 0.0
                 continue
-            # Lado ofensivo: atacante × distração do alvo.
-            distract = max(0.0, 1.0 - float(d_inp.alert))
+            # Lado ofensivo: fatores do atacante apenas.
             p_off[key] = (
                 float(a_inp.p_off)
                 * float(a_inp.scouting)
                 * float(a_inp.training)
-                * distract
             )
-            # Lado defensivo: do defensor × treinamento × alerta.
+            # Lado defensivo: fatores do defensor apenas.
             p_def[key] = (
                 float(d_inp.p_def)
                 * float(d_inp.training)
