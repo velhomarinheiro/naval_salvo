@@ -15,10 +15,10 @@ import streamlit as st
 # Cabeçalho
 # ---------------------------------------------------------------------------
 
-st.title("⚓ Equação de Salva Multidomínio")
+st.title("⚓ Equação de Salva Multidomínio - v. 1.0")
 st.caption(
     "Ferramenta interativa de exploração para análises navais "
-    "multidomínio — versão experimental"
+    "multidomínio — versão experimental - publicada em 17/05/2026"
 )
 
 st.markdown("---")
