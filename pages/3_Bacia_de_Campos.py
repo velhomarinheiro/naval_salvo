@@ -281,6 +281,15 @@ tab_blue, tab_red, tab_engagement, tab_targeting, tab_results = st.tabs(
 
 with tab_blue:
     st.subheader("Composição da Força Azul")
+    st.info(
+        "ℹ️ Os campos de **poder ofensivo** e **poder defensivo** "
+        "informados aqui são usados para pré-preencher a aba "
+        "**⚔️ Matriz de engajamento**. O cálculo da simulação utiliza "
+        "os valores que estiverem na matriz no momento da execução — "
+        "se você refinou alguma célula manualmente, esses valores "
+        "específicos têm precedência. Quantidades e *staying power*, "
+        "ao contrário, são lidos diretamente desta aba."
+    )
     blue_s1 = _ship_class_inputs(
         "Superfície -- Tipo 1",
         BLUE_DEFAULTS["surface_1"],
@@ -325,6 +334,15 @@ with tab_blue:
 
 with tab_red:
     st.subheader("Composição da Força Vermelha")
+    st.info(
+        "ℹ️ Os campos de **poder ofensivo** e **poder defensivo** "
+        "informados aqui são usados para pré-preencher a aba "
+        "**⚔️ Matriz de engajamento**. O cálculo da simulação utiliza "
+        "os valores que estiverem na matriz no momento da execução — "
+        "se você refinou alguma célula manualmente, esses valores "
+        "específicos têm precedência. Quantidades e *staying power*, "
+        "ao contrário, são lidos diretamente desta aba."
+    )
     red_s1 = _ship_class_inputs(
         "Superfície -- Tipo 1",
         RED_DEFAULTS["surface_1"],
@@ -444,79 +462,54 @@ red_unit_types,  red_role_to_name  = _materialize_force(red_resolved,  red_cyber
 # Aba: Matriz de engajamento (p_offense por par)
 # ---------------------------------------------------------------------------
 
-# Defaults de p_offense por par (atacante kinético → defensor kinético).
-# Os valores abaixo são "razoáveis" e podem ser editados pelo usuário.
-# Linha: atacante (role); Coluna: defensor (role).
-DEFAULT_P_OFF_BAR: dict[tuple[str, str], float] = {
-    # Blue → Red
-    ("blue_s1", "red_s1"): 1.5,
-    ("blue_s1", "red_s2"): 1.5,
-    ("blue_s1", "red_air"): 0.8,
-    ("blue_s2", "red_s1"): 1.0,
-    ("blue_s2", "red_s2"): 1.0,
-    ("blue_s2", "red_air"): 0.6,
-    ("blue_sub", "red_s1"): 2.0,
-    ("blue_sub", "red_s2"): 2.0,
-    ("blue_sub", "red_air"): 0.0,   # admissibilidade U→A é 0
-    ("blue_coastal", "red_s1"): 1.5,
-    ("blue_coastal", "red_s2"): 1.5,
-    ("blue_coastal", "red_air"): 0.8,
-    ("blue_fpso", "red_s1"): 0.0,
-    ("blue_fpso", "red_s2"): 0.0,
-    ("blue_fpso", "red_air"): 0.0,
-}
-DEFAULT_P_DEF_BAR: dict[tuple[str, str], float] = {
-    ("blue_s1", "red_s1"): 1.0,
-    ("blue_s1", "red_s2"): 1.0,
-    ("blue_s1", "red_air"): 1.0,
-    ("blue_s2", "red_s1"): 0.6,
-    ("blue_s2", "red_s2"): 0.6,
-    ("blue_s2", "red_air"): 0.6,
-    ("blue_sub", "red_s1"): 0.0,
-    ("blue_sub", "red_s2"): 0.0,
-    ("blue_sub", "red_air"): 0.0,
-    ("blue_coastal", "red_s1"): 0.4,
-    ("blue_coastal", "red_s2"): 0.4,
-    ("blue_coastal", "red_air"): 0.4,
-    ("blue_fpso", "red_s1"): 0.0,
-    ("blue_fpso", "red_s2"): 0.0,
-    ("blue_fpso", "red_air"): 0.0,
-}
-DEFAULT_P_OFF_RAB: dict[tuple[str, str], float] = {
-    # Red → Blue
-    ("red_s1", "blue_s1"): 2.0,
-    ("red_s1", "blue_s2"): 2.0,
-    ("red_s1", "blue_sub"): 0.5,
-    ("red_s1", "blue_coastal"): 1.0,
-    ("red_s1", "blue_fpso"): 2.5,
-    ("red_s2", "blue_s1"): 1.5,
-    ("red_s2", "blue_s2"): 1.5,
-    ("red_s2", "blue_sub"): 0.3,
-    ("red_s2", "blue_coastal"): 0.8,
-    ("red_s2", "blue_fpso"): 2.0,
-    ("red_air", "blue_s1"): 1.8,
-    ("red_air", "blue_s2"): 1.8,
-    ("red_air", "blue_sub"): 0.4,
-    ("red_air", "blue_coastal"): 1.0,
-    ("red_air", "blue_fpso"): 2.5,
-}
-DEFAULT_P_DEF_RAB: dict[tuple[str, str], float] = {
-    ("red_s1", "blue_s1"): 1.5,
-    ("red_s1", "blue_s2"): 1.5,
-    ("red_s1", "blue_sub"): 0.0,
-    ("red_s1", "blue_coastal"): 0.5,
-    ("red_s1", "blue_fpso"): 0.0,
-    ("red_s2", "blue_s1"): 1.0,
-    ("red_s2", "blue_s2"): 1.0,
-    ("red_s2", "blue_sub"): 0.0,
-    ("red_s2", "blue_coastal"): 0.3,
-    ("red_s2", "blue_fpso"): 0.0,
-    ("red_air", "blue_s1"): 0.3,
-    ("red_air", "blue_s2"): 0.3,
-    ("red_air", "blue_sub"): 0.0,
-    ("red_air", "blue_coastal"): 0.2,
-    ("red_air", "blue_fpso"): 0.0,
-}
+# Os defaults são construídos DINAMICAMENTE a partir dos ShipClassInputs
+# das abas Azul e Vermelho a cada rerun, garantindo que mudanças nos
+# campos de p_offense / p_defense das abas de força se propaguem
+# automaticamente para a matriz de engajamento.
+#
+# Regra de preenchimento:
+#   p_off[atk → def] = atk.p_off  (poder ofensivo do atacante, uniforme
+#                                   por par — o usuário refina célula a célula)
+#   p_def[atk → def] = def.p_def  (poder defensivo do defensor contra
+#                                   qualquer atacante)
+#
+# Exceções estruturais:
+#   submarino → aeronave : 0  (admissibilidade nula)
+#   FPSO como atacante   : 0  (sem capacidade ofensiva)
+
+def _make_defaults(
+    atk_resolved: list,
+    def_resolved: list,
+) -> tuple[dict, dict]:
+    """Devolve (p_off_defaults, p_def_defaults) indexados por role-keys.
+
+    p_off[atk_role, def_role] = atk.p_off   (poder ofensivo do atacante)
+    p_def[atk_role, def_role] = def.p_def   (poder defensivo do defensor)
+
+    Exceções estruturais zeradas automaticamente:
+    - Submarino (U) → Aeronave (A): admissibilidade nula.
+    """
+    p_off: dict[tuple[str, str], float] = {}
+    p_def: dict[tuple[str, str], float] = {}
+    for a_inp, a_dom, _a_sub, a_role in atk_resolved:
+        for d_inp, d_dom, _d_sub, d_role in def_resolved:
+            key = (a_role, d_role)
+            if a_dom is Domain.UNDERWATER and d_dom is Domain.AIR:
+                p_off[key] = 0.0
+                p_def[key] = 0.0
+            else:
+                p_off[key] = float(a_inp.p_off)
+                p_def[key] = float(d_inp.p_def)
+    return p_off, p_def
+
+
+# Gera os defaults dinamicamente com base nos inputs ATUAIS das abas.
+DEFAULT_P_OFF_BAR, DEFAULT_P_DEF_BAR = _make_defaults(
+    blue_resolved, red_resolved
+)
+DEFAULT_P_OFF_RAB, DEFAULT_P_DEF_RAB = _make_defaults(
+    red_resolved, blue_resolved
+)
 
 
 def _build_throughput_grid(
@@ -548,11 +541,17 @@ def _build_throughput_grid(
         return pd.DataFrame(rows, index=index)
 
     st.markdown(f"**{direction}** — atacante (linhas) × defensor (colunas)")
-    # Inclui as composições na key para que mudanças de unidade ativas
-    # ou nomes reconstruam o widget (evita resíduo de estado obsoleto).
+    # A sig inclui: nomes das unidades (detecta mudança de composição)
+    # E um hash dos valores dos defaults (detecta mudança de p_off/p_def
+    # nas abas de força, mesmo que os nomes não mudem).
+    def _defaults_hash(d: dict) -> str:
+        vals = sorted((f"{k[0]}:{k[1]}:{v:.4f}" for k, v in d.items()))
+        return str(hash(tuple(vals)) & 0xFFFFFFFF)
+
     sig = (
         "|".join(n for _, n in attacker_roles_active) + "@" +
-        "|".join(n for _, n in defender_roles_active)
+        "|".join(n for _, n in defender_roles_active) + "#" +
+        _defaults_hash(defaults_off) + _defaults_hash(defaults_def)
     )
     c1, c2 = st.columns(2)
     with c1:
@@ -583,12 +582,181 @@ def _build_throughput_grid(
 
 with tab_engagement:
     st.subheader("Matriz de engajamento")
+
     st.markdown(
-        "Os valores abaixo são pré-preenchidos com defaults razoáveis e "
-        "podem ser editados célula a célula. Os pares envolvendo o domínio "
-        "cibernético são preenchidos automaticamente com valores intra-"
-        "domínio padrão e não aparecem aqui (use os campos de Cyber para "
-        "ajustar a quantidade)."
+        """
+        Esta aba reúne os parâmetros que traduzem **como cada plataforma
+        combate** — em oposição às abas anteriores, que apenas definem
+        *quantas* plataformas existem e qual é a sua resistência. São
+        duas grandezas por par ordenado (atacante → defensor):
+
+        - **p_offense** — poder ofensivo: o número esperado de
+          *acertos efetivos por unidade atacante por salva* contra um
+          alvo da classe defensora. Incorpora, de forma composta, a
+          quantidade de munição lançada, a precisão do sistema de armas
+          e a probabilidade de penetrar a defesa pontual do alvo.
+        - **p_defense** — poder defensivo: o número esperado de
+          *interceptações por unidade defensora por salva* contra
+          mísseis ou projéteis da classe atacante. Representa a
+          capacidade de *área-denial* de cada plataforma.
+
+        Esses dois parâmetros, junto com os coeficientes de efetividade
+        η (mantidos em 1,0 por padrão) e a fração de fogo σ (definida
+        pela política de *targeting*), compõem o **kernel da equação de
+        salva** para cada par. A atribuição de perdas a cada salva
+        segue:
+
+        > **Perdas líquidas** ∝ max(0, Σⱼ σ · η · p_offense · Bⱼ
+        > − Σⱼ σ · η · p_defense · Aᵢ) / *staying power*
+
+        O sinal de `max(0, ·)` expressa o princípio fundamental do
+        modelo: fogo não-interceptado causa perdas; fogo totalmente
+        absorvido pela defesa não causa nenhuma.
+        """
+    )
+
+    with st.expander("📐 Como interpretar e calibrar os valores", expanded=True):
+        st.markdown(
+            """
+            #### O que cada célula representa
+
+            Cada célula da tabela de p_offense corresponde a **uma
+            linha de atacante e uma coluna de defensor**. O valor 1,5
+            na célula (Fragata classe A → Destróier), por exemplo,
+            significa que cada fragata azul lança, em uma salva,
+            o equivalente a 1,5 acertos esperados sobre um destróier
+            vermelho — antes de qualquer interceptação pelo destróier.
+
+            Já a tabela de p_defense é lida ao contrário: o valor 1,0
+            na célula (Fragata classe A, como *defensora*, contra o
+            Destróier como *atacante*) significa que cada fragata azul
+            intercepta, em média, 1,0 dos mísseis lançados por cada
+            destróier vermelho em sua direção.
+
+            ---
+
+            #### Exemplo numérico — duelo simétrico
+
+            Considere o par mais simples: 2 Fragatas Azuis (classe A,
+            p_offense = 1,5; *staying* = 3,0) contra 2 Destróieres
+            Vermelhos (p_offense = 2,0; *staying* = 4,0), com
+            p_defense = 1,0 em ambos os lados e σ = η = 1.
+
+            *Primeira salva (Vermelho ataca Azul):*
+
+            > Fogo bruto = 2 × 2,0 = 4,0 acertos  
+            > Defesa azul = 2 × 1,0 = 2,0 interceptações  
+            > Fogo líquido = max(0 ; 4,0 − 2,0) = **2,0 hits**  
+            > Perdas Azuis = 2,0 / 3,0 ≈ **0,67 fragatas**
+
+            *Primeira salva (Azul ataca Vermelho):*
+
+            > Fogo bruto = 2 × 1,5 = 3,0 acertos  
+            > Defesa vermelha = 2 × 1,5 = 3,0 interceptações  
+            > Fogo líquido = max(0 ; 3,0 − 3,0) = **0 hits**  
+            > Perdas Vermelhas = **0**
+
+            O resultado revela algo imediato: com a defesa vermelha
+            de 1,5 e apenas 2 fragatas, o Azul não consegue penetrar
+            a proteção do adversário nessa salva. Para mudar o
+            resultado, o usuário deve ou aumentar p_offense do Azul
+            (melhorar o sistema de armas), ou reduzir a quantidade de
+            unidades vermelhas (targeting), ou incorporar o submarino
+            (p_offense = 2,0 contra navios, sem equivalente na defesa
+            antitorpedo do Vermelho).
+
+            ---
+
+            #### Exemplo numérico — assimetria aviação × superfície
+
+            A aviação de ataque vermelha tem p_offense = 2,5 contra
+            FPSOs e staying = 1,0. Com 4 aeronaves e uma FPSO com
+            staying = 6,0 e sem defesa ativa (p_defense = 0):
+
+            > Fogo bruto = 4 × 2,5 = 10,0 acertos  
+            > Defesa = 0  
+            > Perdas FPSO por salva = 10,0 / 6,0 ≈ **1,67 plataformas**
+
+            4 FPSOs sobrevivem menos de 3 salvas. Se o usuário
+            acrescentar uma Fragata Azul interceptando a aviação
+            (p_defense = 1,0 contra aeronaves, com σ proporcional):
+
+            > Defesa = 1 × 1,0 = 1,0 interceptação  
+            > Fogo líquido = 10,0 − 1,0 = 9,0 hits  
+            > Perdas = 9,0 / 6,0 ≈ **1,5 plataformas por salva**
+
+            A redução marginal é pequena porque 1 fragata não
+            consegue saturar a aviação de 4 aeronaves. Esse
+            resultado ilustra por que o modelo não tem mecânica de
+            *area defense*: p_defense da fragata não se estende às
+            FPSOs vizinhas — cada par é avaliado independentemente.
+
+            ---
+
+            #### Faixas de referência usuais
+
+            | Tipo de interação | p_offense | p_defense |
+            |---|---|---|
+            | Navio de superfície vs. navio de superfície | 1,0 – 3,0 | 0,5 – 2,0 |
+            | Submarino vs. navio de superfície | 1,5 – 3,0 | 0 (ASW baixo) |
+            | Navio de superfície vs. aeronave | 0,3 – 1,0 | 0,5 – 1,5 |
+            | Aviação de ataque vs. navio de superfície | 1,5 – 3,0 | 0,1 – 0,5 |
+            | Aviação de ataque vs. FPSO | 2,0 – 4,0 | 0 (alvo fixo) |
+            | Bateria costeira vs. navio de superfície | 1,0 – 2,5 | 0,2 – 0,8 |
+            | Submarino vs. aeronave | **0** (admissibilidade nula) | — |
+
+            Valores de p_offense acima de 4,0 raramente fazem sentido
+            físico para plataformas individuais e normalmente indicam
+            que o parâmetro está absorvendo um fator de escala que
+            deveria estar na quantidade de unidades. Valores abaixo
+            de 0,1 produzem fogo praticamente inefetivo e podem ser
+            substituídos por 0 sem impacto visível nos resultados.
+
+            Para p_defense, o limite superior prático é o valor de
+            p_offense do atacante: uma defesa que intercepta mais
+            projéteis do que são lançados não tem significado
+            operacional — o modelo absorve esse excesso pelo
+            `max(0, ·)`, mas o parâmetro perde sentido intuitivo.
+            Uma boa regra de bolso é manter p_defense ≤ 0,6 ×
+            p_offense do atacante correspondente como ponto de
+            partida para plataformas modernas em alto risco de
+            saturação de defesa.
+            """
+        )
+
+    with st.expander("⚠️ Avisos sobre pares com admissibilidade zero"):
+        st.markdown(
+            """
+            Alguns pares são **estruturalmente nulos** pela matriz de
+            admissibilidade canônica e não produzem atrito
+            independentemente do p_offense informado:
+
+            - **Submarino → Aeronave**: torpedos não atingem aeronaves
+              em voo. Qualquer valor de p_offense nesse par será
+              multiplicado por χ = 0 e não terá efeito. O valor 0,0
+              pré-preenchido reflete isso.
+            - **Unidades cibernéticas → Submarino**: por decisão
+              doutrinária do modelo, o domínio cibernético não atinge
+              submarinos. Os pares cyber-submarino são zerados
+              automaticamente pelo engine e não aparecem nesta tabela.
+            - **Unidades cinéticas → capacidade cibernética**: no
+              modelo atual, plataformas cinéticas não atritam
+              diretamente a capacidade cibernética do oponente. O
+              confronto cibernético ocorre apenas intra-domínio
+              (cyber vs. cyber) e é configurado na aba de forças
+              através das quantidades por sub-tipo.
+
+            Editar esses pares não produz erro, mas também não
+            produz efeito — o resultado será idêntico ao de manter
+            o valor em 0,0.
+            """
+        )
+
+    st.markdown(
+        "Os valores abaixo são pré-preenchidos com os defaults da "
+        "tabela de referência acima e podem ser editados célula a "
+        "célula. Pares envolvendo o domínio cibernético são "
+        "preenchidos automaticamente e não aparecem aqui."
     )
 
     blue_active_roles = [
