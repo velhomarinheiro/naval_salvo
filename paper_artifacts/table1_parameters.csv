@@ -1,0 +1,11 @@
+Tipo de unidade,Domínio,ς (staying),p_offense,p_defense,η (eficácia)
+Frigate,S (superfície),2.0,4.0,2.0,0.85
+Submarine,U (subsuperfície),2.0,2.0,0.0,0.9
+MPA,A (aérea),1.0,1.5,0.0,0.7
+FPSO,"S (superfície, sub-tipo Pré-Sal)",3.0,0.0,0.0,0.0
+Destroyer,S (superfície),3.0,4.0,2.0,0.8
+StrikeAir,A (aérea),1.0,2.5,0.0,0.75
+Cyber-C2,"X (ciber, $y_\delta$)",1.0,0.5,0.5,1.0
+Cyber-SEN,"X (ciber, $y_\sigma$)",1.0,0.5,0.5,1.0
+Cyber-WPN,"X (ciber, $y_\rho$)",1.0,0.5,0.5,1.0
+Cyber-LOG,"X (ciber, $y_{def}$)",1.0,0.5,0.5,1.0

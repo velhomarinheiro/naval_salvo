@@ -1,0 +1,9 @@
+Sub,Cyber Azul,Cyber Vermelho,Modulador,Salvas,FPSO,Fragatas,Submarino,Destroyer
+N,0,0,Sem cyber,2,0.00,0.00,-,2.00
+N,2,2,"Simétrico (2,2)",10,0.00,0.00,-,2.00
+N,1,2,"Assimétrico Vermelho (1,2)",3,0.00,0.00,-,2.00
+N,0,3,"Domínio Vermelho (0,3)",2,0.00,0.00,-,2.00
+Y,0,0,Sem cyber,3,0.00,0.00,0.00,1.78
+Y,2,2,"Simétrico (2,2)",11,0.00,0.00,0.00,2.00
+Y,1,2,"Assimétrico Vermelho (1,2)",3,0.00,0.00,0.00,2.00
+Y,0,3,"Domínio Vermelho (0,3)",2,0.00,0.00,0.00,2.00
