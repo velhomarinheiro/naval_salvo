@@ -11,23 +11,20 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Diagnóstico temporário
-if not PAGES_DIR.exists():
-    st.error(f"Pasta pages não encontrada em: {PAGES_DIR}")
-    st.write("Arquivos encontrados na raiz:")
-    st.write([p.name for p in BASE_DIR.iterdir()])
-    st.stop()
-
-st.sidebar.success("Menu carregado")
-
 pages = {
+    "Início": [
+        st.Page(PAGES_DIR / "0_Inicio.py", title="Página Inicial", icon="🏠"),
+    ],
     "Modelo": [
         st.Page(PAGES_DIR / "1_Hughes.py", title="Hughes 1995", icon="⚓"),
-        st.Page(PAGES_DIR / "2_Coronel.py", title="JPH / Coronel", icon="📘"),
-        st.Page(PAGES_DIR / "3_Bacia_de_Campos.py", title="Bacia de Campos", icon="🌊"),
+        st.Page(
+            PAGES_DIR / "3_Bacia_de_Campos.py",
+            title="Cenário de Modelo Multidomínio",
+            icon="🌊",
+        ),
         st.Page(PAGES_DIR / "4_Cyber.py", title="Cyber", icon="🛰️"),
     ],
-    "Validação": [
+    "Documentação": [
         st.Page(PAGES_DIR / "5_Validacao.py", title="Validação", icon="✅"),
         st.Page(PAGES_DIR / "6_Sobre.py", title="Sobre", icon="ℹ️"),
     ],
