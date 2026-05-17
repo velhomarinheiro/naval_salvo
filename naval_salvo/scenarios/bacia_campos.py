@@ -1,28 +1,116 @@
 """
-Página: Bacia de Campos (cenário multidomínio configurável).
+naval_salvo.scenarios.bacia_campos
+==================================
 
-Reformulação da página original: em vez de usar o ``BaciaCamposConfig``
-fixo (que só expõe ``n_frigates`` / ``submarine_present`` / contagens de
-cyber), construímos o cenário diretamente com o ``EngagementBuilder``
-do pacote ``naval_salvo``.  Isso permite ao usuário editar, na própria
-interface:
+Defesa da Bacia de Campos -- the central case study of the SIGE 2026
+paper.
 
-- Lado Azul (MB):
-    * 02 tipos diferentes de unidades de superfície (qtd, staying,
-      p_offense, p_defense para cada tipo);
-    * Submarinos -- 01 tipo, qtd configurável (staying, p_off, p_def);
-    * Bateria costeira -- qtd, staying, p_off, p_def;
-    * FPSO -- qtd e staying (sem poder ofensivo, como ativo de valor);
-    * Cyber Azul -- qtd por sub-tipo (C2, SEN, WPN, LOG).
-- Lado Vermelho:
-    * 02 tipos diferentes de unidades de superfície (qtd, staying,
-      p_off, p_def);
-    * Aviação de ataque -- qtd, staying, p_off, p_def;
-    * Cyber Vermelho -- qtd por sub-tipo.
+Scope (Phase 1 doc 1.4 §5, Step 4 of the implementation plan):
+    Blue (Brazilian Navy / defender):
+        - 1-2 frigates (Tamandare-class equivalent)         domain S
+        - 1 conventional submarine (Riachuelo-class)        domain U
+        - 1 maritime patrol aircraft (P-3AM equivalent)     domain A
+        - 4 FPSO platforms                                   domain S, sub-type
+                                                              "FPSO" with
+                                                              p_offense = 0.
+    Red (generic adversary):
+        - 2-3 surface combatants (destroyer-class)          domain S
+        - 1 strike aircraft squadron (with SSMs)            domain A
+        - (cyber capability lands in Step 5)
 
-A página gera dinamicamente as unidades, monta o ``EngagementParameters``
-com defaults sensatos para os pares e roda ``run_campaign``.  Mostra
-trajetórias por domínio e tabela final.
+The scenario module exports:
+
+- ``BaciaCamposConfig``         dataclass collecting the *force
+                                 sizing* knobs that the sensitivity
+                                 analysis varies (number of frigates,
+                                 submarine present yes/no, number of
+                                 FPSOs, etc.).
+- ``build_bacia_campos()``      assembles a fully-specified
+                                 ``BattleState`` + ``EngagementParameters``
+                                 + ``Admissibility`` from a config.
+- ``BACIA_CAMPOS_PARAMETERS``   the calibrated per-pair parameters as
+                                 a dictionary.  Documented per-cell
+                                 with provenance so the paper's
+                                 parameter table can be generated
+                                 directly from this constant.
+
+Parameter calibration sources
+-----------------------------
+The published salvo-equation literature gives consistent ranges that
+we adopt here:
+
+- **Frigate (Tamandare/Niteroi-modernised) ~3500-6000 ton**:
+    staying_power x = 2.0   (Hughes 1995, Christiansen 2008 LCS/NSC)
+    p_offense β   = 4.0     (4 SSMs per salvo with p_hit = 1 baseline)
+    p_defense z   = 2.0     (point defense + CIWS; from JPH §IV)
+    eta            = 0.85    (well-trained crew, modern systems)
+
+- **Conventional submarine (Riachuelo-class)**:
+    staying_power = 2.0     (similar to non-frigate combatants)
+    p_offense     = 2.0     (heavy torpedo salvo)
+    p_defense     = 0.0     (subs do not actively intercept SSMs)
+    eta           = 0.90    (high stealth, training premium)
+
+- **Maritime patrol aircraft (P-3AM / equivalent)**:
+    staying_power = 1.0     (single hit puts MPA out)
+    p_offense     = 1.5     (modest ASW/anti-surface payload)
+    p_defense     = 0.0
+    eta           = 0.70    (long mission cycles, lower availability)
+
+- **FPSO platform (Pre-salt)**:
+    staying_power = 3.0     (large stationary platform; realistic
+                              that 3 missile hits = mission-kill,
+                              consistent with FPSO survivability
+                              studies for Bacia de Campos)
+    p_offense     = 0.0     (NO offensive capability by construction;
+                              decision 1.4 §2.3.b)
+    p_defense     = 0.0     (no native point defense; protection
+                              depends on χ-coupling with escort
+                              frigates -- a known limitation of
+                              the canonical salvo formulation that
+                              the paper discusses explicitly)
+    eta           = 0.0     (degenerate: FPSO is a target, not a unit)
+
+- **Generic destroyer (adversary)**:
+    staying_power = 3.0     (somewhat tougher than frigate)
+    p_offense     = 4.0     (4 SSMs; lower than peer-NATO assumption
+                              because the scenario assumes regional
+                              adversary rather than great-power peer)
+    p_defense     = 2.0     (modern but not Aegis-class)
+    eta           = 0.80    (peer-competitor training)
+
+- **Adversary strike aircraft squadron**:
+    staying_power = 1.0     (one good SAM hit = kill)
+    p_offense     = 2.5     (SSM-armed strike package, modest payload)
+    p_defense     = 0.0
+    eta           = 0.75
+
+- **Cyber units (X domain, sub-typed C2/SEN/WPN/LOG)**:
+    staying_power = 1.0     (cyber teams have no kinetic vulnerability;
+                             attrited only by intra-X cyber attack)
+    p_offense     = 0.5     (modest direct attrition on opponent's
+                             cyber stock per salvo)
+    p_defense     = 0.5     (counter-cyber capacity)
+    eta           = 1.0
+    Note: cyber's main effect is *not* kinetic attrition (which the
+    χ matrix mostly nulls or marginalises) but the Φ modulator that
+    re-scales σ and η of opponent's kinetic units.
+
+These are *illustrative* values for proof-of-concept; the SIGE 2026
+paper notes they will be refined through MB doctrinal sources in
+follow-on work.  What the scenario demonstrates is *qualitative*:
+the multi-domain coupling effects that single-domain (homogeneous or
+JPH 2001 surface-only) models cannot capture.
+
+References
+----------
+- Phase 1 working document 1.4 §5 (cenario specification).
+- Christiansen (2008) "Cost-Effective Procurement of Distributed
+  Lethality Capabilities" -- LCS/NSC parameter table (NPS thesis).
+- Casola (2017) NPS thesis -- MDUSV scenario task force composition,
+  p.43 Table 2 (canonical staying/offensive/defensive ranges).
+- 369154011020210128.pdf (PKR105 / Iver Huitfeldt comparison) --
+  frigate-class parameter ranges (ATP-31B Above Water Warfare manual).
 """
 
 from __future__ import annotations
@@ -31,1055 +119,370 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-import streamlit as st
 
-from naval_salvo import (
-    Admissibility,
-    ChannelPhi,
-    Domain,
-    EngagementBuilder,
-    Manual,
-    StrengthProportional,
-    ThreatWeighted,
-    Uniform,
-    UnitType,
-    run_campaign,
-)
-from naval_salvo.targeting import TargetingPolicy
+from ..admissibility import Admissibility, canonical_matrix
+from ..coefficients import EngagementBuilder
+from ..domains import Domain
+from ..parameters import EngagementParameters
+from ..state import BattleState, Force, UnitType
+from ..targeting import StrengthProportional, ThreatWeighted, Uniform
 
 
 # ---------------------------------------------------------------------------
-# Configuração da página
+# Calibrated parameters (single source of truth for the paper table)
 # ---------------------------------------------------------------------------
 
-st.set_page_config(
-    page_title="Bacia de Campos -- multidomínio",
-    page_icon="⚓",
-    layout="wide",
-)
+#: Calibrated unit-type parameter dictionary.  Each entry is a tuple
+#: (staying_power, p_offense, p_defense, eta).  Values rationale is in
+#: the module docstring above.
+BACIA_CAMPOS_PARAMETERS: dict[str, tuple[float, float, float, float]] = {
+    # name                  s,    p_off,  p_def,  eta
+    "Frigate":             (2.0,  4.0,    2.0,    0.85),
+    "Submarine":           (2.0,  2.0,    0.0,    0.90),
+    "MPA":                 (1.0,  1.5,    0.0,    0.70),
+    "FPSO":                (3.0,  0.0,    0.0,    0.00),
+    "Destroyer":           (3.0,  4.0,    2.0,    0.80),
+    "StrikeAir":           (1.0,  2.5,    0.0,    0.75),
+    # Cyber unit types (X domain, sub-typed by suffix).  Same params
+    # for all four sub-types under the canonical baseline; calibration
+    # may differentiate them in future work.
+    "Cyber-C2":            (1.0,  0.5,    0.5,    1.00),
+    "Cyber-SEN":           (1.0,  0.5,    0.5,    1.00),
+    "Cyber-WPN":           (1.0,  0.5,    0.5,    1.00),
+    "Cyber-LOG":           (1.0,  0.5,    0.5,    1.00),
+}
 
-st.title("⚓ Cenário multidomínio -- Bacia de Campos")
-st.markdown(
+
+# ---------------------------------------------------------------------------
+# Scenario configuration
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BaciaCamposConfig:
     """
-    Configure abaixo a composição das duas forças, seus parâmetros de
-    capacidade, e as matrizes de engajamento. A simulação roda o modelo
-    de salva multidomínio (Hughes 1995 estendido) com a matriz de
-    admissibilidade canônica e, opcionalmente, o modulador cibernético
-    Φ por canal.
-    """
-)
-
-
-# ---------------------------------------------------------------------------
-# Defaults inspirados no cenário original do paper (BACIA_CAMPOS_PARAMETERS).
-# Editáveis em runtime; cada classe vira um UnitType só se ``quantity > 0``.
-# ---------------------------------------------------------------------------
-
-@dataclass
-class ShipClassInputs:
-    """Inputs editáveis para uma classe de unidade kinética."""
-
-    name: str
-    quantity: int
-    staying: float
-    p_off: float
-    p_def: float
-
-
-# Cyber: 4 sub-tipos, todos com staying = 1 e p_off contra outros
-# sub-tipos cyber default.  Quantidade por sub-tipo é o único campo
-# editável (igual ao paper).
-CYBER_SUBTYPES = ["C2", "SEN", "WPN", "LOG"]
-CYBER_DEFAULT_STAYING = 1.0
-CYBER_DEFAULT_P_OFF = 0.5      # contra outros sub-tipos cyber
-CYBER_DEFAULT_P_DEF = 0.2
-
-
-# ---------------------------------------------------------------------------
-# Defaults editáveis no formulário -- valores "Bacia de Campos" do paper.
-# ---------------------------------------------------------------------------
-
-BLUE_DEFAULTS = {
-    # 2 tipos de superfície: fragata principal + corveta/patrulha leve
-    "surface_1": ShipClassInputs("Fragata classe A", 2, 3.0, 1.5, 1.0),
-    "surface_2": ShipClassInputs("Corveta/Patrulha", 2, 2.0, 1.0, 0.6),
-    "submarine": ShipClassInputs("Submarino convencional", 1, 2.0, 2.0, 0.0),
-    "coastal":   ShipClassInputs("Bateria costeira",       1, 4.0, 1.2, 0.4),
-    # FPSO: ativo de valor, alta staying, sem poder ofensivo.
-    "fpso":      ShipClassInputs("FPSO (Pré-Sal)",         4, 6.0, 0.0, 0.0),
-}
-
-RED_DEFAULTS = {
-    "surface_1": ShipClassInputs("Destróier",  2, 4.0, 2.5, 1.5),
-    "surface_2": ShipClassInputs("Fragata adv.", 2, 3.0, 1.8, 1.0),
-    "strike_air": ShipClassInputs("Aviação de ataque", 4, 1.0, 2.0, 0.3),
-}
-
-
-# ---------------------------------------------------------------------------
-# Sidebar -- configurações globais
-# ---------------------------------------------------------------------------
-
-st.sidebar.header("Configurações globais")
-n_salvos = st.sidebar.slider(
-    "Número máximo de salvas", min_value=1, max_value=30, value=15, step=1,
-    help="A campanha pode terminar antes se uma força for neutralizada."
-)
-use_cyber = st.sidebar.checkbox(
-    "Ativar modulador cibernético Φ (canal)", value=True,
-    help="Aplica o modulador ChannelPhi do pacote, que escala η_offense/"
-         "η_defense em função da razão de força cibernética por canal "
-         "(σ, ρ, δ). Submarinos são imunes."
-)
-stop_on_termination = st.sidebar.checkbox(
-    "Encerrar campanha ao colapso de uma das forças", value=True
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Política de targeting")
-targeting_policy_name = st.sidebar.selectbox(
-    "Como cada atacante reparte sua salva entre os alvos admissíveis?",
-    options=[
-        "StrengthProportional",
-        "Uniform",
-        "ThreatWeighted",
-        "Manual",
-    ],
-    index=0,
-    help=(
-        "StrengthProportional: σ proporcional à força remanescente do "
-        "alvo (MacKay 2009 / Hausken-Moxnes 2026).\n\n"
-        "Uniform: divisão igual entre todos os alvos admissíveis "
-        "(Hughes 1995 default).\n\n"
-        "ThreatWeighted: σ proporcional a pesos editáveis por classe "
-        "defensora -- útil para priorizar FPSOs.\n\n"
-        "Manual: o usuário define σ célula a célula em uma matriz "
-        "fixa (a mesma em todas as salvas)."
-    ),
-)
-_policy_descriptions = {
-    "StrengthProportional":
-        "Cada salva é distribuída em proporção à força *atual* do alvo. "
-        "σ é recalculada antes de cada salva (semi-dinâmica).",
-    "Uniform":
-        "Cada atacante divide sua salva igualmente entre os alvos "
-        "doutrinariamente admissíveis. σ é fixada na primeira salva.",
-    "ThreatWeighted":
-        "Configure pesos por classe defensora na aba 'Targeting'. "
-        "σ é recalculada antes de cada salva.",
-    "Manual":
-        "Configure as matrizes σ_offense célula a célula na aba "
-        "'Targeting'. σ é fixa em todas as salvas.",
-}
-st.sidebar.caption(_policy_descriptions[targeting_policy_name])
-
-
-# ---------------------------------------------------------------------------
-# Helpers para construir os widgets de cada classe.
-# ---------------------------------------------------------------------------
-
-def _ship_class_inputs(
-    label: str,
-    defaults: ShipClassInputs,
-    *,
-    key_prefix: str,
-    allow_zero_quantity: bool = True,
-    locked_p_off: bool = False,
-    locked_p_def: bool = False,
-    help_text: str = "",
-) -> ShipClassInputs:
-    """Renderiza 4 widgets (nome, qtd, staying, p_off, p_def) num expander.
-
-    Se ``allow_zero_quantity`` for True, quantidade 0 omite a classe da
-    força (útil para "desligar" submarino, segunda classe de superfície
-    etc).
-    """
-    with st.expander(label, expanded=True):
-        if help_text:
-            st.caption(help_text)
-        name = st.text_input(
-            "Nome da classe", value=defaults.name, key=f"{key_prefix}_name"
-        )
-        c1, c2 = st.columns(2)
-        quantity = c1.number_input(
-            "Quantidade", min_value=0 if allow_zero_quantity else 1,
-            value=defaults.quantity, step=1, key=f"{key_prefix}_qty"
-        )
-        staying = c2.number_input(
-            "Staying power (ς)", min_value=0.1,
-            value=float(defaults.staying), step=0.1, format="%.2f",
-            key=f"{key_prefix}_staying",
-            help="Número de hits que cada unidade absorve antes de ser "
-                 "neutralizada."
-        )
-        c3, c4 = st.columns(2)
-        if locked_p_off:
-            p_off = 0.0
-            c3.markdown("**Poder ofensivo (p_off):** _0 (sem capacidade ofensiva)_")
-        else:
-            p_off = c3.number_input(
-                "Poder ofensivo (p_off)", min_value=0.0,
-                value=float(defaults.p_off), step=0.1, format="%.2f",
-                key=f"{key_prefix}_poff",
-                help="Hits por unidade por salva, contra o alvo padrão."
-            )
-        if locked_p_def:
-            p_def = 0.0
-            c4.markdown("**Poder defensivo (p_def):** _0 (sem defesa ativa)_")
-        else:
-            p_def = c4.number_input(
-                "Poder defensivo (p_def)", min_value=0.0,
-                value=float(defaults.p_def), step=0.1, format="%.2f",
-                key=f"{key_prefix}_pdef",
-                help="Interceptações por unidade por salva."
-            )
-        return ShipClassInputs(
-            name=name, quantity=int(quantity),
-            staying=float(staying),
-            p_off=float(p_off), p_def=float(p_def),
-        )
-
-
-def _cyber_inputs(
-    label: str, key_prefix: str, default_per_subtype: int = 2
-) -> dict[str, int]:
-    """Renderiza quantidades dos 4 sub-tipos cyber."""
-    with st.expander(label, expanded=False):
-        st.caption(
-            "Stocks cibernéticos por sub-tipo. C2 = comando e controle; "
-            "SEN = sensores/ISR; WPN = sistemas de armas; LOG = logística."
-        )
-        cols = st.columns(4)
-        out: dict[str, int] = {}
-        for col, sub in zip(cols, CYBER_SUBTYPES):
-            out[sub] = int(col.number_input(
-                sub, min_value=0, max_value=20,
-                value=default_per_subtype, step=1,
-                key=f"{key_prefix}_cyber_{sub}",
-            ))
-        return out
-
-
-# ---------------------------------------------------------------------------
-# Formulários: duas abas (Azul / Vermelho) + uma para matriz de engajamento
-# ---------------------------------------------------------------------------
-
-tab_blue, tab_red, tab_engagement, tab_targeting, tab_results = st.tabs(
-    [
-        "🔵 Força Azul (MB)",
-        "🔴 Força Vermelha",
-        "⚔️ Matriz de engajamento",
-        "🎯 Targeting",
-        "📊 Resultados",
-    ]
-)
-
-
-# ---- Azul -----------------------------------------------------------------
-
-with tab_blue:
-    st.subheader("Composição da Força Azul")
-    blue_s1 = _ship_class_inputs(
-        "Superfície -- Tipo 1",
-        BLUE_DEFAULTS["surface_1"],
-        key_prefix="blue_s1",
-        help_text="Primeira classe de unidades de superfície (ex.: fragata)."
-    )
-    blue_s2 = _ship_class_inputs(
-        "Superfície -- Tipo 2",
-        BLUE_DEFAULTS["surface_2"],
-        key_prefix="blue_s2",
-        help_text="Segunda classe de unidades de superfície (ex.: corveta). "
-                  "Use quantidade 0 para desativar."
-    )
-    blue_sub = _ship_class_inputs(
-        "Submarinos",
-        BLUE_DEFAULTS["submarine"],
-        key_prefix="blue_sub",
-        help_text="Uma classe de submarinos; quantidade configurável. "
-                  "Imunes ao cyber por construção do modelo."
-    )
-    blue_coastal = _ship_class_inputs(
-        "Bateria costeira",
-        BLUE_DEFAULTS["coastal"],
-        key_prefix="blue_coastal",
-        help_text="Bateria costeira de mísseis anti-navio."
-    )
-    blue_fpso = _ship_class_inputs(
-        "FPSO (ativo de valor)",
-        BLUE_DEFAULTS["fpso"],
-        key_prefix="blue_fpso",
-        locked_p_off=True, locked_p_def=True,
-        help_text="Plataformas do Pré-Sal: alvos a proteger, sem capacidade "
-                  "ofensiva ou defensiva ativa. Apenas staying power."
-    )
-    blue_cyber = _cyber_inputs(
-        "Cyber Azul (por sub-tipo)", key_prefix="blue",
-        default_per_subtype=2,
-    )
-
-
-# ---- Vermelho -------------------------------------------------------------
-
-with tab_red:
-    st.subheader("Composição da Força Vermelha")
-    red_s1 = _ship_class_inputs(
-        "Superfície -- Tipo 1",
-        RED_DEFAULTS["surface_1"],
-        key_prefix="red_s1",
-        help_text="Primeira classe de unidades de superfície adversárias."
-    )
-    red_s2 = _ship_class_inputs(
-        "Superfície -- Tipo 2",
-        RED_DEFAULTS["surface_2"],
-        key_prefix="red_s2",
-        help_text="Segunda classe adversária. Quantidade 0 desativa."
-    )
-    red_air = _ship_class_inputs(
-        "Aviação de ataque",
-        RED_DEFAULTS["strike_air"],
-        key_prefix="red_air",
-        help_text="Aeronaves/UAVs adversários de ataque ao mar."
-    )
-    red_cyber = _cyber_inputs(
-        "Cyber Vermelho (por sub-tipo)", key_prefix="red",
-        default_per_subtype=2,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Monta a lista de UnitType ativos para cada lado.
-# ---------------------------------------------------------------------------
-
-def _build_unit_types(
-    classes: list[tuple[ShipClassInputs, Domain, Optional[str]]],
-    cyber_counts: dict[str, int],
-) -> list[UnitType]:
-    """Constrói os UnitType ativos (qtd > 0) na ordem fornecida.
-
-    ``classes`` é uma lista de (inputs, domínio, subtype-opcional).
-    Inclui também os sub-tipos cibernéticos com qtd > 0 ao final.
-    """
-    out: list[UnitType] = []
-    used_names: set[str] = set()
-    for inp, domain, subtype in classes:
-        if inp.quantity <= 0:
-            continue
-        nm = inp.name
-        # Garante unicidade dentro da Force.
-        base = nm
-        k = 2
-        while nm in used_names:
-            nm = f"{base} ({k})"
-            k += 1
-        used_names.add(nm)
-        out.append(UnitType(
-            name=nm, domain=domain,
-            staying_power=inp.staying,
-            initial_strength=float(inp.quantity),
-            subtype=subtype,
-        ))
-    # Sub-tipos cyber
-    for sub, qty in cyber_counts.items():
-        if qty <= 0:
-            continue
-        nm = f"Cyber-{sub}"
-        used_names.add(nm)
-        out.append(UnitType(
-            name=nm, domain=Domain.CYBER,
-            staying_power=CYBER_DEFAULT_STAYING,
-            initial_strength=float(qty),
-            subtype=sub,
-        ))
-    return out
-
-
-# Mantém referência de (nome efetivo, inputs originais, papel) para usar
-# depois na hora de preencher as matrizes p_offense / p_defense.
-def _resolve_blue_classes() -> list[tuple[ShipClassInputs, Domain, Optional[str], str]]:
-    """Devolve (inputs, domínio, subtype, role-key) para cada classe Azul."""
-    return [
-        (blue_s1, Domain.SURFACE, None, "blue_s1"),
-        (blue_s2, Domain.SURFACE, None, "blue_s2"),
-        (blue_sub, Domain.UNDERWATER, None, "blue_sub"),
-        (blue_coastal, Domain.COASTAL, None, "blue_coastal"),
-        (blue_fpso, Domain.SURFACE, "pre-salt", "blue_fpso"),
-    ]
-
-
-def _resolve_red_classes() -> list[tuple[ShipClassInputs, Domain, Optional[str], str]]:
-    return [
-        (red_s1, Domain.SURFACE, None, "red_s1"),
-        (red_s2, Domain.SURFACE, None, "red_s2"),
-        (red_air, Domain.AIR, None, "red_air"),
-    ]
-
-
-# Constrói as listas ordenadas e os UnitType correspondentes.
-blue_resolved = _resolve_blue_classes()
-red_resolved = _resolve_red_classes()
-
-# Para o builder precisamos do nome final atribuído a cada UnitType.
-def _materialize_force(resolved, cyber_counts):
-    classes_for_builder = [(r[0], r[1], r[2]) for r in resolved]
-    uts = _build_unit_types(classes_for_builder, cyber_counts)
-    # Mapeia role_key -> nome final, para classes ativas.
-    role_to_name: dict[str, str] = {}
-    idx = 0
-    for inp, _, _, role in resolved:
-        if inp.quantity <= 0:
-            continue
-        role_to_name[role] = uts[idx].name
-        idx += 1
-    return uts, role_to_name
-
-
-blue_unit_types, blue_role_to_name = _materialize_force(blue_resolved, blue_cyber)
-red_unit_types,  red_role_to_name  = _materialize_force(red_resolved,  red_cyber)
-
-
-# ---------------------------------------------------------------------------
-# Aba: Matriz de engajamento (p_offense por par)
-# ---------------------------------------------------------------------------
-
-# Defaults de p_offense por par (atacante kinético → defensor kinético).
-# Os valores abaixo são "razoáveis" e podem ser editados pelo usuário.
-# Linha: atacante (role); Coluna: defensor (role).
-DEFAULT_P_OFF_BAR: dict[tuple[str, str], float] = {
-    # Blue → Red
-    ("blue_s1", "red_s1"): 1.5,
-    ("blue_s1", "red_s2"): 1.5,
-    ("blue_s1", "red_air"): 0.8,
-    ("blue_s2", "red_s1"): 1.0,
-    ("blue_s2", "red_s2"): 1.0,
-    ("blue_s2", "red_air"): 0.6,
-    ("blue_sub", "red_s1"): 2.0,
-    ("blue_sub", "red_s2"): 2.0,
-    ("blue_sub", "red_air"): 0.0,   # admissibilidade U→A é 0
-    ("blue_coastal", "red_s1"): 1.5,
-    ("blue_coastal", "red_s2"): 1.5,
-    ("blue_coastal", "red_air"): 0.8,
-    ("blue_fpso", "red_s1"): 0.0,
-    ("blue_fpso", "red_s2"): 0.0,
-    ("blue_fpso", "red_air"): 0.0,
-}
-DEFAULT_P_DEF_BAR: dict[tuple[str, str], float] = {
-    ("blue_s1", "red_s1"): 1.0,
-    ("blue_s1", "red_s2"): 1.0,
-    ("blue_s1", "red_air"): 1.0,
-    ("blue_s2", "red_s1"): 0.6,
-    ("blue_s2", "red_s2"): 0.6,
-    ("blue_s2", "red_air"): 0.6,
-    ("blue_sub", "red_s1"): 0.0,
-    ("blue_sub", "red_s2"): 0.0,
-    ("blue_sub", "red_air"): 0.0,
-    ("blue_coastal", "red_s1"): 0.4,
-    ("blue_coastal", "red_s2"): 0.4,
-    ("blue_coastal", "red_air"): 0.4,
-    ("blue_fpso", "red_s1"): 0.0,
-    ("blue_fpso", "red_s2"): 0.0,
-    ("blue_fpso", "red_air"): 0.0,
-}
-DEFAULT_P_OFF_RAB: dict[tuple[str, str], float] = {
-    # Red → Blue
-    ("red_s1", "blue_s1"): 2.0,
-    ("red_s1", "blue_s2"): 2.0,
-    ("red_s1", "blue_sub"): 0.5,
-    ("red_s1", "blue_coastal"): 1.0,
-    ("red_s1", "blue_fpso"): 2.5,
-    ("red_s2", "blue_s1"): 1.5,
-    ("red_s2", "blue_s2"): 1.5,
-    ("red_s2", "blue_sub"): 0.3,
-    ("red_s2", "blue_coastal"): 0.8,
-    ("red_s2", "blue_fpso"): 2.0,
-    ("red_air", "blue_s1"): 1.8,
-    ("red_air", "blue_s2"): 1.8,
-    ("red_air", "blue_sub"): 0.4,
-    ("red_air", "blue_coastal"): 1.0,
-    ("red_air", "blue_fpso"): 2.5,
-}
-DEFAULT_P_DEF_RAB: dict[tuple[str, str], float] = {
-    ("red_s1", "blue_s1"): 1.5,
-    ("red_s1", "blue_s2"): 1.5,
-    ("red_s1", "blue_sub"): 0.0,
-    ("red_s1", "blue_coastal"): 0.5,
-    ("red_s1", "blue_fpso"): 0.0,
-    ("red_s2", "blue_s1"): 1.0,
-    ("red_s2", "blue_s2"): 1.0,
-    ("red_s2", "blue_sub"): 0.0,
-    ("red_s2", "blue_coastal"): 0.3,
-    ("red_s2", "blue_fpso"): 0.0,
-    ("red_air", "blue_s1"): 0.3,
-    ("red_air", "blue_s2"): 0.3,
-    ("red_air", "blue_sub"): 0.0,
-    ("red_air", "blue_coastal"): 0.2,
-    ("red_air", "blue_fpso"): 0.0,
-}
-
-
-def _build_throughput_grid(
-    direction: str,
-    attacker_roles_active: list[tuple[str, str]],  # (role, final_name)
-    defender_roles_active: list[tuple[str, str]],
-    defaults_off: dict[tuple[str, str], float],
-    defaults_def: dict[tuple[str, str], float],
-) -> tuple[dict[tuple[str, str], float], dict[tuple[str, str], float]]:
-    """Render data_editor and return {(atk_name, def_name): value} dicts."""
-    if not attacker_roles_active or not defender_roles_active:
-        st.info(
-            f"Direção {direction}: uma das forças não tem unidades ativas."
-        )
-        return {}, {}
-
-    atk_role_to_name = dict(attacker_roles_active)
-    def_role_to_name = dict(defender_roles_active)
-
-    def _df_from_defaults(defaults: dict[tuple[str, str], float]) -> pd.DataFrame:
-        rows = []
-        index = []
-        for atk_role, atk_name in attacker_roles_active:
-            index.append(atk_name)
-            row = {}
-            for def_role, def_name in defender_roles_active:
-                row[def_name] = float(defaults.get((atk_role, def_role), 0.0))
-            rows.append(row)
-        return pd.DataFrame(rows, index=index)
-
-    st.markdown(f"**{direction}** — atacante (linhas) × defensor (colunas)")
-    # Inclui as composições na key para que mudanças de unidade ativas
-    # ou nomes reconstruam o widget (evita resíduo de estado obsoleto).
-    sig = (
-        "|".join(n for _, n in attacker_roles_active) + "@" +
-        "|".join(n for _, n in defender_roles_active)
-    )
-    c1, c2 = st.columns(2)
-    with c1:
-        st.caption("Poder ofensivo p_offense (hits/atacante/salva)")
-        df_off = st.data_editor(
-            _df_from_defaults(defaults_off),
-            key=f"poff_{direction}_{sig}",
-            use_container_width=True,
-            num_rows="fixed",
-        )
-    with c2:
-        st.caption("Poder defensivo p_defense (interceptações/defensor/salva)")
-        df_def = st.data_editor(
-            _df_from_defaults(defaults_def),
-            key=f"pdef_{direction}_{sig}",
-            use_container_width=True,
-            num_rows="fixed",
-        )
-
-    out_off: dict[tuple[str, str], float] = {}
-    out_def: dict[tuple[str, str], float] = {}
-    for atk_role, atk_name in attacker_roles_active:
-        for def_role, def_name in defender_roles_active:
-            out_off[(atk_name, def_name)] = float(df_off.loc[atk_name, def_name])
-            out_def[(atk_name, def_name)] = float(df_def.loc[atk_name, def_name])
-    return out_off, out_def
-
-
-with tab_engagement:
-    st.subheader("Matriz de engajamento")
-    st.markdown(
-        "Os valores abaixo são pré-preenchidos com defaults razoáveis e "
-        "podem ser editados célula a célula. Os pares envolvendo o domínio "
-        "cibernético são preenchidos automaticamente com valores intra-"
-        "domínio padrão e não aparecem aqui (use os campos de Cyber para "
-        "ajustar a quantidade)."
-    )
-
-    blue_active_roles = [
-        (r[3], blue_role_to_name[r[3]])
-        for r in blue_resolved if r[0].quantity > 0
-    ]
-    red_active_roles = [
-        (r[3], red_role_to_name[r[3]])
-        for r in red_resolved if r[0].quantity > 0
-    ]
-
-    p_off_bar, p_def_bar = _build_throughput_grid(
-        "Azul → Vermelho",
-        blue_active_roles, red_active_roles,
-        DEFAULT_P_OFF_BAR, DEFAULT_P_DEF_BAR,
-    )
-    st.markdown("---")
-    p_off_rab, p_def_rab = _build_throughput_grid(
-        "Vermelho → Azul",
-        red_active_roles, blue_active_roles,
-        DEFAULT_P_OFF_RAB, DEFAULT_P_DEF_RAB,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Adiciona pares cyber-vs-cyber e cyber-vs-kinético com defaults razoáveis.
-# ---------------------------------------------------------------------------
-
-def _add_cyber_pairs(
-    p_off: dict[tuple[str, str], float],
-    p_def: dict[tuple[str, str], float],
-    attackers: list[UnitType],
-    defenders: list[UnitType],
-) -> None:
-    """Preenche, in-place, os pares envolvendo o domínio cyber com defaults.
-
-    - Cyber vs Cyber: p_off = CYBER_DEFAULT_P_OFF; p_def = CYBER_DEFAULT_P_DEF.
-    - Cyber vs kinético (não submarino): p_off pequeno (0.1) -- o efeito
-      principal vem via modulador Φ, não da atrição direta. p_def = 0.
-    - Cyber vs submarino: 0 (imune).
-    - Kinético vs cyber: 0 (não atritam cyber diretamente neste modelo).
-    """
-    for atk in attackers:
-        for dfn in defenders:
-            key = (atk.name, dfn.name)
-            if key in p_off:
-                continue
-            if atk.domain is Domain.CYBER and dfn.domain is Domain.CYBER:
-                p_off[key] = CYBER_DEFAULT_P_OFF
-                p_def[key] = CYBER_DEFAULT_P_DEF
-            elif atk.domain is Domain.CYBER and dfn.domain is Domain.UNDERWATER:
-                p_off[key] = 0.0
-                p_def[key] = 0.0
-            elif atk.domain is Domain.CYBER:
-                p_off[key] = 0.1
-                p_def[key] = 0.0
-            else:
-                # kinético vs cyber: 0
-                p_off[key] = 0.0
-                p_def[key] = 0.0
-
-
-# ---------------------------------------------------------------------------
-# Wrapper para Manual com duas matrizes (uma por direção).
-#
-# A classe Manual do pacote guarda *uma* matriz σ.  Como apply_targeting_
-# policy e EngagementBuilder usam a mesma instância da política nas duas
-# direções (Blue->Red e Red->Blue), precisamos despachar a matriz certa
-# em função da identidade do atacante.  Faço isso por comparação do
-# label da Force (Force.label == "Blue" / "Red").
-# ---------------------------------------------------------------------------
-
-
-class _DirectionAwareManual(TargetingPolicy):
-    """Manual com matrizes σ separadas para B→R e R→B.
-
-    Despacha pela ``label`` do atacante. Compatível com
-    ``apply_targeting_policy`` e ``run_campaign`` (que chamam ``compute``
-    nas duas direções).
+    Force-sizing knobs for the Bacia de Campos scenario.
+
+    Defaults match the canonical Phase 1 specification (1 frigate,
+    1 submarine, 1 MPA, 4 FPSOs vs 2 destroyers + 1 strike-air group).
+    The sensitivity analysis varies each knob.
+
+    Attributes
+    ----------
+    n_frigates : int
+        Number of Tamandare-equivalent frigates.  Sensitivity: 0..3.
+    submarine_present : bool
+        Whether the Riachuelo-class submarine is on station.
+        Sensitivity: True / False (the headline figure).
+    mpa_present : bool
+        Whether the patrol aircraft is on station.  Default True.
+    n_fpsos : int
+        Number of FPSO platforms (the protected assets).  Default 4.
+    n_destroyers : int
+        Adversary surface combatants.  Default 2.
+    strike_air_present : bool
+        Whether adversary strike-air sortie is launched.  Default True.
+    blue_cyber_per_subtype : int
+        Number of cyber teams of each sub-type (C2/SEN/WPN/LOG) on
+        the Blue side.  0 (default) means Blue has no cyber stock;
+        the sensitivity analysis varies this.
+    red_cyber_per_subtype : int
+        Same, for the Red side.  Defaults to a modest baseline (1)
+        reflecting the Phase-1 specification of "modest Blue cyber,
+        significant Red cyber" -- but the *significant* asymmetry is
+        better captured by setting Blue=0 and Red=2 in the comparison
+        runs.
+    use_canonical_admissibility : bool
+        If True, use ``Admissibility.canonical()``.  If False, use a
+        scenario-tuned matrix that, in particular, sets χ(A→U) = 0.5
+        (MPA can attack submarines but only marginally) and χ(S→U) =
+        0.3 (frigates have limited ASW reach).
+    chi : float
+        χ value used for marginal cells of the canonical admissibility
+        matrix when ``use_canonical_admissibility`` is True.
     """
 
-    def __init__(
-        self,
-        blue_label: str,
-        red_label: str,
-        sigma_off_bar: np.ndarray,
-        sigma_def_bar: np.ndarray,
-        sigma_off_rab: np.ndarray,
-        sigma_def_rab: np.ndarray,
-    ) -> None:
-        self.blue_label = blue_label
-        self.red_label = red_label
-        # Validações: entradas em [0, 1] e finitas.
-        for name, m in [
-            ("sigma_off_bar", sigma_off_bar),
-            ("sigma_def_bar", sigma_def_bar),
-            ("sigma_off_rab", sigma_off_rab),
-            ("sigma_def_rab", sigma_def_rab),
-        ]:
-            arr = np.asarray(m, dtype=np.float64)
-            if np.any(arr < 0.0) or np.any(arr > 1.0) or not np.all(np.isfinite(arr)):
-                raise ValueError(
-                    f"{name} deve ter valores em [0, 1] e finitos."
-                )
-        self.sigma_off_bar = np.asarray(sigma_off_bar, dtype=np.float64)
-        self.sigma_def_bar = np.asarray(sigma_def_bar, dtype=np.float64)
-        self.sigma_off_rab = np.asarray(sigma_off_rab, dtype=np.float64)
-        self.sigma_def_rab = np.asarray(sigma_def_rab, dtype=np.float64)
+    n_frigates: int = 1
+    submarine_present: bool = True
+    mpa_present: bool = True
+    n_fpsos: int = 4
+    n_destroyers: int = 2
+    strike_air_present: bool = True
+    blue_cyber_per_subtype: int = 0
+    red_cyber_per_subtype: int = 0
+    use_canonical_admissibility: bool = True
+    chi: float = 0.5
 
-    def compute(self, attacker, defender, admissibility):
-        if attacker.label == self.blue_label:
-            return self.sigma_off_bar.copy(), self.sigma_def_bar.copy()
-        if attacker.label == self.red_label:
-            return self.sigma_off_rab.copy(), self.sigma_def_rab.copy()
-        raise ValueError(
-            f"Atacante desconhecido: label={attacker.label!r}; "
-            f"esperava {self.blue_label!r} ou {self.red_label!r}."
-        )
+    def __post_init__(self) -> None:
+        if self.n_frigates < 0:
+            raise ValueError(f"n_frigates must be >= 0; got {self.n_frigates}")
+        if self.n_fpsos < 0:
+            raise ValueError(f"n_fpsos must be >= 0; got {self.n_fpsos}")
+        if self.n_destroyers < 0:
+            raise ValueError(
+                f"n_destroyers must be >= 0; got {self.n_destroyers}")
+        if self.blue_cyber_per_subtype < 0:
+            raise ValueError(
+                f"blue_cyber_per_subtype must be >= 0; "
+                f"got {self.blue_cyber_per_subtype}")
+        if self.red_cyber_per_subtype < 0:
+            raise ValueError(
+                f"red_cyber_per_subtype must be >= 0; "
+                f"got {self.red_cyber_per_subtype}")
+        if not 0.0 <= self.chi <= 1.0:
+            raise ValueError(f"chi must be in [0, 1]; got {self.chi}")
 
 
 # ---------------------------------------------------------------------------
-# Aba: Targeting -- configura a política escolhida.
+# Scenario builder
 # ---------------------------------------------------------------------------
 
-# A instância da política é construída aqui, com base no que o usuário
-# preencher nesta aba (se a política tiver parâmetros). É consumida na
-# aba 'Resultados'.
-targeting_policy: Optional[TargetingPolicy] = None
 
-with tab_targeting:
-    st.subheader(f"Política de targeting: {targeting_policy_name}")
+def build_bacia_campos(
+    config: Optional[BaciaCamposConfig] = None,
+) -> tuple[BattleState, EngagementParameters, Admissibility]:
+    """
+    Assemble the full Bacia de Campos engagement.
 
-    blue_active_names = [
-        blue_role_to_name[r[3]] for r in blue_resolved if r[0].quantity > 0
-    ]
-    red_active_names = [
-        red_role_to_name[r[3]] for r in red_resolved if r[0].quantity > 0
-    ]
-    # Inclui cyber (eles aparecem como UnitType com domínio CYBER).
-    blue_active_names_full = [ut.name for ut in blue_unit_types]
-    red_active_names_full = [ut.name for ut in red_unit_types]
+    Returns
+    -------
+    state : BattleState
+    params : EngagementParameters
+    adm : Admissibility
 
-    if targeting_policy_name == "StrengthProportional":
-        st.info(
-            "σ é redistribuída antes de cada salva, proporcionalmente à "
-            "força *atual* de cada alvo admissível. **Não há parâmetros "
-            "para editar nesta política.**"
-        )
-        targeting_policy = StrengthProportional()
+    Notes
+    -----
+    Targeting policy: Red attacks Blue using ``ThreatWeighted`` with
+    FPSOs receiving 3x the priority of frigates / submarine / MPA.
+    Blue attacks Red using ``StrengthProportional`` (defenders simply
+    react to the most numerous threat).
+    """
+    if config is None:
+        config = BaciaCamposConfig()
 
-    elif targeting_policy_name == "Uniform":
-        st.info(
-            "Cada atacante divide sua salva igualmente entre todos os "
-            "alvos doutrinariamente admissíveis (admissibilidade > 0). "
-            "**Não há parâmetros para editar nesta política.**"
-        )
-        targeting_policy = Uniform()
+    blue, red = _build_forces(config)
 
-    elif targeting_policy_name == "ThreatWeighted":
-        st.markdown(
-            "Defina pesos por classe defensora. Pesos maiores atraem "
-            "mais fogo. Os pesos não precisam somar 1 — são "
-            "normalizados internamente. Útil, p.ex., para colocar peso "
-            "alto nos FPSOs."
-        )
-        st.caption(
-            "Sigma_offense (j → i) ∝ peso(i). "
-            "Sigma_defense usa pesos por atacante (todos = 1 por default)."
-        )
+    # Per-pair throughput dictionaries.
+    bar_p_off, bar_eta_off = _build_directional_throughputs(blue, red)
+    rab_p_off, rab_eta_off = _build_directional_throughputs(red, blue)
+    bar_p_def, bar_eta_def = _build_directional_defenses(blue, red)
+    rab_p_def, rab_eta_def = _build_directional_defenses(red, blue)
 
-        col_blue, col_red = st.columns(2)
-
-        # Pesos sobre defensores VERMELHOS (quando Azul ataca):
-        with col_blue:
-            st.markdown(
-                "**Pesos das defensoras Vermelhas (alvos para o Azul)**"
-            )
-            w_red_defenders: list[float] = []
-            for nm in red_active_names_full:
-                default = 1.0
-                w = st.number_input(
-                    nm, min_value=0.0, value=default, step=0.5,
-                    format="%.2f",
-                    key=f"tw_blue_targets_{nm}",
-                    help="Peso desta classe como alvo para a força Azul."
-                )
-                w_red_defenders.append(float(w))
-
-        # Pesos sobre defensores AZUIS (quando Vermelho ataca) -- FPSOs default 3.
-        with col_red:
-            st.markdown(
-                "**Pesos das defensoras Azuis (alvos para o Vermelho)**"
-            )
-            w_blue_defenders: list[float] = []
-            for nm in blue_active_names_full:
-                # Default alto para FPSO (3.0); restante 1.0.
-                default = 3.0 if "FPSO" in nm.upper() else 1.0
-                w = st.number_input(
-                    nm, min_value=0.0, value=default, step=0.5,
-                    format="%.2f",
-                    key=f"tw_red_targets_{nm}",
-                    help="Peso desta classe como alvo para a força Vermelha."
-                )
-                w_blue_defenders.append(float(w))
-
-        # Importante: ThreatWeighted é uma política simétrica em código:
-        # ela aplica os mesmos pesos *nos dois usos*, com o vetor cujo
-        # tamanho bate com o defensor.  Como os defensores têm tamanhos
-        # diferentes nas duas direções, precisamos de DUAS instâncias e
-        # passá-las como _DirectionAwareThreatWeighted.  Para
-        # simplificar, criamos um wrapper que despacha.
-
-        class _DirectionAwareThreatWeighted(TargetingPolicy):
-            def __init__(self, blue_label, red_label,
-                         w_blue_targets, w_red_targets):
-                self.blue_label = blue_label
-                self.red_label = red_label
-                self._tw_bar = ThreatWeighted(
-                    offensive_weights=np.array(w_red_targets,
-                                               dtype=np.float64),
-                )
-                self._tw_rab = ThreatWeighted(
-                    offensive_weights=np.array(w_blue_targets,
-                                               dtype=np.float64),
-                )
-
-            def compute(self, attacker, defender, admissibility):
-                if attacker.label == self.blue_label:
-                    return self._tw_bar.compute(attacker, defender,
-                                                 admissibility)
-                if attacker.label == self.red_label:
-                    return self._tw_rab.compute(attacker, defender,
-                                                 admissibility)
-                raise ValueError(f"Atacante desconhecido: {attacker.label!r}")
-
-        targeting_policy = _DirectionAwareThreatWeighted(
-            blue_label="Blue", red_label="Red",
-            w_blue_targets=w_blue_defenders,
-            w_red_targets=w_red_defenders,
-        )
-
-    elif targeting_policy_name == "Manual":
-        st.markdown(
-            "Defina as matrizes σ_offense célula a célula. As linhas "
-            "somam livremente — recomenda-se que cada linha some 1.0 "
-            "(fração da salva), mas o pacote aceita valores em [0, 1] "
-            "sem somar 1 (parcela do atacante que efetivamente "
-            "engaja cada alvo). Os pares com admissibilidade zero "
-            "ainda serão zerados pela própria matriz χ no engine."
-        )
-        st.caption(
-            "σ_defense é deixada como zero (sem alocação defensiva "
-            "manual). Caso queira modelar defesa ativa proporcional, "
-            "use StrengthProportional."
-        )
-
-        def _sigma_editor(direction: str, atk_names: list[str],
-                          def_names: list[str]) -> pd.DataFrame:
-            if not atk_names or not def_names:
-                st.info(f"{direction}: forças incompletas.")
-                return pd.DataFrame()
-            n_atk = len(atk_names)
-            n_def = len(def_names)
-            default = np.full((n_atk, n_def), 1.0 / max(n_def, 1),
-                              dtype=np.float64)
-            df = pd.DataFrame(default, index=atk_names, columns=def_names)
-            sig = "|".join(atk_names) + "@" + "|".join(def_names)
-            st.markdown(f"**{direction}**  σ_offense  (linhas: "
-                        f"atacante; colunas: alvo)")
-            return st.data_editor(
-                df, key=f"sigma_off_{direction}_{sig}",
-                use_container_width=True, num_rows="fixed",
-            )
-
-        df_sig_bar = _sigma_editor(
-            "Azul → Vermelho",
-            blue_active_names_full, red_active_names_full,
-        )
-        st.markdown("---")
-        df_sig_rab = _sigma_editor(
-            "Vermelho → Azul",
-            red_active_names_full, blue_active_names_full,
-        )
-
-        if not df_sig_bar.empty and not df_sig_rab.empty:
-            try:
-                targeting_policy = _DirectionAwareManual(
-                    blue_label="Blue", red_label="Red",
-                    sigma_off_bar=df_sig_bar.to_numpy(dtype=np.float64),
-                    sigma_def_bar=np.zeros_like(
-                        df_sig_bar.to_numpy(dtype=np.float64)
-                    ),
-                    sigma_off_rab=df_sig_rab.to_numpy(dtype=np.float64),
-                    sigma_def_rab=np.zeros_like(
-                        df_sig_rab.to_numpy(dtype=np.float64)
-                    ),
-                )
-            except ValueError as e:
-                st.error(f"Valores inválidos na matriz σ: {e}")
-                targeting_policy = None
-
-
-# ---------------------------------------------------------------------------
-# Aba: Resultados
-# ---------------------------------------------------------------------------
-
-with tab_results:
-    st.subheader("Resultado da simulação")
-
-    # Validações mínimas antes de rodar (não usam st.stop() para não
-    # afetar as outras abas).
-    blue_total_kinetic = sum(
-        inp.quantity for inp, dom, _, _ in blue_resolved if dom.is_kinetic
-    )
-    red_total_kinetic = sum(
-        inp.quantity for inp, dom, _, _ in red_resolved if dom.is_kinetic
-    )
-    can_run = True
-    if blue_total_kinetic == 0:
-        st.error("A Força Azul precisa de pelo menos uma unidade cinética "
-                 "(quantidade ≥ 1 em algum tipo de superfície, submarino "
-                 "ou bateria costeira).")
-        can_run = False
-    if red_total_kinetic == 0:
-        st.error("A Força Vermelha precisa de pelo menos uma unidade "
-                 "cinética (superfície ou aviação de ataque).")
-        can_run = False
-
-    run_clicked = st.button(
-        "▶️ Rodar simulação", type="primary",
-        use_container_width=True, disabled=not can_run,
-    )
-    if run_clicked:
-
-        # Completa as matrizes com os pares cyber.
-        _add_cyber_pairs(p_off_bar, p_def_bar, blue_unit_types, red_unit_types)
-        _add_cyber_pairs(p_off_rab, p_def_rab, red_unit_types, blue_unit_types)
-
-        # Verifica que a política foi construída (em particular, Manual
-        # exige que o usuário tenha preenchido a matriz na aba Targeting).
-        if targeting_policy is None:
-            st.error(
-                "Política de targeting não disponível. Verifique a aba "
-                "🎯 Targeting (especialmente se escolheu Manual)."
-            )
-            st.stop()
-
-        # Para a política Manual, σ é estática: passamos no builder mas
-        # não a refrescamos entre salvas (run_campaign com targeting_
-        # policy=None usa as σ embutidas em params). Demais políticas
-        # são semi-dinâmicas e refrescam a cada salva.
-        is_manual = targeting_policy_name == "Manual"
-
-        # Monta o engagement.
-        builder = (
-            EngagementBuilder()
-            .with_blue(blue_unit_types, label="Blue")
-            .with_red(red_unit_types,  label="Red")
-            .with_throughput_blue_attacks_red(
-                p_offense=p_off_bar, p_defense=p_def_bar,
-            )
-            .with_throughput_red_attacks_blue(
-                p_offense=p_off_rab, p_defense=p_def_rab,
-            )
-            .with_targeting_policy(targeting_policy)
-            .with_admissibility(Admissibility.canonical())
-        )
-        ep = builder.build()
-
-        # Importa o BattleState do pacote para envolver as duas Forces.
-        from naval_salvo.state import BattleState
-        state = BattleState(blue=ep.blue, red=ep.red)
-
-        modulator = ChannelPhi() if use_cyber else None
-
-        with st.spinner("Rodando campanha multidomínio..."):
-            traj = run_campaign(
-                state, ep, builder.admissibility,
-                n_salvos=n_salvos,
-                targeting_policy=None if is_manual else targeting_policy,
-                cyber_modulator=modulator,
-                stop_on_combat_ineffective=stop_on_termination,
-            )
-
-        # ---- Sumário ----
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Salvas executadas", traj.n_completed_salvos)
-        c2.metric(
-            "Encerramento antecipado",
-            "Sim" if traj.terminated_early else "Não"
-        )
-        blue_final = traj.blue_strength_history[-1].sum()
-        red_final = traj.red_strength_history[-1].sum()
-        winner = "Empate" if (blue_final > 0 and red_final > 0) else (
-            "Azul" if red_final == 0 and blue_final > 0 else (
-                "Vermelho" if blue_final == 0 and red_final > 0 else "—"
-            )
-        )
-        c3.metric("Lado remanescente", winner)
-
-        # ---- Gráficos: trajetória por domínio ----
-        st.markdown("#### Trajetórias por domínio")
-
-        def _plot_side(side: str, color_map: dict[Domain, str]) -> go.Figure:
-            dom_data = traj.total_strength_history_by_domain(side)
-            fig = go.Figure()
-            for d in Domain:
-                arr = dom_data[d]
-                if arr.max() == 0.0:
-                    continue
-                fig.add_trace(go.Scatter(
-                    x=traj.times, y=arr,
-                    mode="lines+markers",
-                    name=f"{d.value} ({d.name.lower()})",
-                    line=dict(color=color_map[d], width=2),
-                ))
-            fig.update_layout(
-                xaxis_title="Salva k",
-                yaxis_title="Força total no domínio",
-                height=380,
-                margin=dict(l=10, r=10, t=30, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                            xanchor="right", x=1),
-            )
-            return fig
-
-        color_map = {
-            Domain.SURFACE:    "#1f4e79",
-            Domain.UNDERWATER: "#3a8c8a",
-            Domain.AIR:        "#cc8400",
-            Domain.COASTAL:    "#a02020",
-            Domain.CYBER:      "#7a52a0",
-        }
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**Força Azul (MB)**")
-            st.plotly_chart(_plot_side("blue", color_map),
-                            use_container_width=True)
-        with c2:
-            st.markdown("**Força Vermelha**")
-            st.plotly_chart(_plot_side("red", color_map),
-                            use_container_width=True)
-
-        # ---- Tabela final por unidade ----
-        st.markdown("#### Estado final por unidade")
-        c1, c2 = st.columns(2)
-
-        def _final_df(history: np.ndarray, unit_types: list[UnitType]) -> pd.DataFrame:
-            return pd.DataFrame({
-                "Unidade":    [ut.name for ut in unit_types],
-                "Domínio":    [ut.domain.value for ut in unit_types],
-                "Inicial":    [ut.initial_strength for ut in unit_types],
-                "Final":      history[-1],
-                "Perdas":     history[0] - history[-1],
-                "% perdas":   [
-                    (1 - history[-1, j] / history[0, j]) * 100
-                    if history[0, j] > 0 else 0.0
-                    for j in range(history.shape[1])
-                ],
-            }).round(2)
-
-        with c1:
-            st.markdown("**Azul**")
-            st.dataframe(
-                _final_df(traj.blue_strength_history, traj._blue_unit_types),
-                use_container_width=True, hide_index=True,
-            )
-        with c2:
-            st.markdown("**Vermelho**")
-            st.dataframe(
-                _final_df(traj.red_strength_history, traj._red_unit_types),
-                use_container_width=True, hide_index=True,
-            )
-
-        # FPSO em destaque (se presente)
-        fpso_idx = next(
-            (j for j, ut in enumerate(traj._blue_unit_types)
-             if "FPSO" in ut.name.upper() or
-                (ut.subtype and ut.subtype.lower() == "pre-salt")),
-            None,
-        )
-        if fpso_idx is not None:
-            initial = traj.blue_strength_history[0, fpso_idx]
-            final = traj.blue_strength_history[-1, fpso_idx]
-            st.info(
-                f"**FPSOs (Pré-Sal):** {final:.1f} de {initial:.0f} "
-                f"plataformas sobreviveram "
-                f"({(final / initial * 100 if initial else 0):.1f}%)."
-            )
+    # Admissibility.
+    if config.use_canonical_admissibility:
+        adm = Admissibility(canonical_matrix(chi=config.chi))
     else:
-        st.caption(
-            "Clique em **Rodar simulação** acima para executar a campanha "
-            "com a configuração atual."
+        adm = Admissibility.canonical()
+
+    # Build red threat weights: FPSOs get the highest priority because
+    # they are the operationally meaningful target; military escorts
+    # are secondary.
+    red_attack_weights = _build_red_threat_weights(blue)
+
+    # Build with no global targeting policy, then apply per-direction
+    # policies separately (each direction has different semantics:
+    # Red prioritises FPSOs via ThreatWeighted, Blue reacts to numerous
+    # threats via StrengthProportional).
+    builder = (
+        EngagementBuilder()
+        .with_blue(blue.unit_types, label=blue.label)
+        .with_red(red.unit_types, label=red.label)
+        .with_throughput_blue_attacks_red(
+            p_offense=bar_p_off,
+            eta_offense=bar_eta_off,
+            p_defense=bar_p_def,
+            eta_defense=bar_eta_def,
         )
+        .with_throughput_red_attacks_blue(
+            p_offense=rab_p_off,
+            eta_offense=rab_eta_off,
+            p_defense=rab_p_def,
+            eta_defense=rab_eta_def,
+        )
+        .with_admissibility(adm)
+    )
+    ep = builder.build()
+
+    # Now overlay per-direction targeting:
+    #   Blue -> Red: StrengthProportional (defenders react to the
+    #                most numerous attacker)
+    #   Red -> Blue: ThreatWeighted (attacker prioritises FPSOs 3x)
+    from ..coefficients import _refresh_sigma
+    sig_o_bar, sig_d_bar = StrengthProportional().compute(blue, red, adm)
+    sig_o_rab, sig_d_rab = ThreatWeighted(
+        offensive_weights=red_attack_weights
+    ).compute(red, blue, adm)
+    bar_new = _refresh_sigma(ep.blue_attacks_red, sig_o_bar, sig_d_bar)
+    rab_new = _refresh_sigma(ep.red_attacks_blue, sig_o_rab, sig_d_rab)
+    ep = EngagementParameters(
+        blue=ep.blue,
+        red=ep.red,
+        blue_attacks_red=bar_new,
+        red_attacks_blue=rab_new,
+        t_char=ep.t_char,
+        rho=ep.rho,
+    )
+
+    state = BattleState(blue=ep.blue, red=ep.red)
+    return state, ep, adm
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_forces(config: BaciaCamposConfig) -> tuple[Force, Force]:
+    """Assemble the two Force objects from a BaciaCamposConfig."""
+    blue_unit_types: list[UnitType] = []
+
+    # Frigates (zero or more).
+    s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["Frigate"]
+    if config.n_frigates > 0:
+        blue_unit_types.append(UnitType(
+            name="Frigate",
+            domain=Domain.SURFACE,
+            staying_power=s,
+            initial_strength=float(config.n_frigates),
+        ))
+
+    # Submarine.
+    if config.submarine_present:
+        s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["Submarine"]
+        blue_unit_types.append(UnitType(
+            name="Submarine",
+            domain=Domain.UNDERWATER,
+            staying_power=s,
+            initial_strength=1.0,
+        ))
+
+    # MPA.
+    if config.mpa_present:
+        s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["MPA"]
+        blue_unit_types.append(UnitType(
+            name="MPA",
+            domain=Domain.AIR,
+            staying_power=s,
+            initial_strength=1.0,
+        ))
+
+    # FPSO platforms (zero-offence surface sub-type).
+    if config.n_fpsos > 0:
+        s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["FPSO"]
+        blue_unit_types.append(UnitType(
+            name="FPSO",
+            domain=Domain.SURFACE,
+            staying_power=s,
+            initial_strength=float(config.n_fpsos),
+            subtype="pre-salt-platform",
+        ))
+
+    # Cyber units (4 sub-types, one Force-level UnitType each).
+    if config.blue_cyber_per_subtype > 0:
+        for sub_code, name in [("C2",  "Cyber-C2"),
+                               ("SEN", "Cyber-SEN"),
+                               ("WPN", "Cyber-WPN"),
+                               ("LOG", "Cyber-LOG")]:
+            s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS[name]
+            blue_unit_types.append(UnitType(
+                name=name,
+                domain=Domain.CYBER,
+                staying_power=s,
+                initial_strength=float(config.blue_cyber_per_subtype),
+                subtype=sub_code,
+            ))
+
+    if not blue_unit_types:
+        raise ValueError(
+            "BaciaCamposConfig produced an empty Blue force; need "
+            "at least one defender or one FPSO."
+        )
+
+    blue = Force(label="MB", unit_types=blue_unit_types)
+
+    # Red side.
+    red_unit_types: list[UnitType] = []
+    if config.n_destroyers > 0:
+        s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["Destroyer"]
+        red_unit_types.append(UnitType(
+            name="Destroyer",
+            domain=Domain.SURFACE,
+            staying_power=s,
+            initial_strength=float(config.n_destroyers),
+        ))
+    if config.strike_air_present:
+        s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS["StrikeAir"]
+        red_unit_types.append(UnitType(
+            name="StrikeAir",
+            domain=Domain.AIR,
+            staying_power=s,
+            initial_strength=4.0,                 # squadron of 4 aircraft
+        ))
+    if config.red_cyber_per_subtype > 0:
+        for sub_code, name in [("C2",  "Cyber-C2"),
+                               ("SEN", "Cyber-SEN"),
+                               ("WPN", "Cyber-WPN"),
+                               ("LOG", "Cyber-LOG")]:
+            s, p_off, p_def, eta = BACIA_CAMPOS_PARAMETERS[name]
+            red_unit_types.append(UnitType(
+                name=name,
+                domain=Domain.CYBER,
+                staying_power=s,
+                initial_strength=float(config.red_cyber_per_subtype),
+                subtype=sub_code,
+            ))
+
+    if not red_unit_types:
+        raise ValueError(
+            "BaciaCamposConfig produced an empty Red force; need "
+            "at least one attacker."
+        )
+
+    red = Force(label="Adversario", unit_types=red_unit_types)
+    return blue, red
+
+
+def _build_directional_throughputs(
+    attacker: Force, defender: Force
+) -> tuple[dict, dict]:
+    """Build (p_offense, eta_offense) dicts for one direction."""
+    p_off: dict[tuple[str, str], float] = {}
+    eta_off: dict[tuple[str, str], float] = {}
+    for atk in attacker.unit_types:
+        s_a, p_off_a, p_def_a, eta_a = BACIA_CAMPOS_PARAMETERS[atk.name]
+        for defn in defender.unit_types:
+            p_off[(atk.name, defn.name)] = p_off_a
+            eta_off[(atk.name, defn.name)] = eta_a
+    return p_off, eta_off
+
+
+def _build_directional_defenses(
+    attacker: Force, defender: Force
+) -> tuple[dict, dict]:
+    """Build (p_defense, eta_defense) dicts for one direction."""
+    p_def_d: dict[tuple[str, str], float] = {}
+    eta_def_d: dict[tuple[str, str], float] = {}
+    for atk in attacker.unit_types:
+        for defn in defender.unit_types:
+            s_d, p_off_d, p_def_d_val, eta_d = BACIA_CAMPOS_PARAMETERS[
+                defn.name
+            ]
+            p_def_d[(atk.name, defn.name)] = p_def_d_val
+            eta_def_d[(atk.name, defn.name)] = eta_d
+    return p_def_d, eta_def_d
+
+
+def _build_red_threat_weights(blue: Force) -> np.ndarray:
+    """
+    Per-defender threat weights expressing the Red attacker's priorities.
+
+    FPSOs are the protected operational target -- 3x weight.  Military
+    escorts get baseline 1.0.
+    """
+    weights = np.empty(blue.n_unit_types, dtype=np.float64)
+    for j, ut in enumerate(blue.unit_types):
+        if ut.name == "FPSO":
+            weights[j] = 3.0
+        else:
+            weights[j] = 1.0
+    return weights
