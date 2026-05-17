@@ -27,6 +27,7 @@ pages = {
     "Documentação": [
         st.Page(PAGES_DIR / "5_Validacao.py", title="Validação", icon="✅"),
         st.Page(PAGES_DIR / "6_Sobre.py", title="Sobre", icon="ℹ️"),
+        st.Page(PAGES_DIR / "7_Calculadora_Offline.py", title="Calculadora Offline", icon="📥"),
     ],
 }
 
