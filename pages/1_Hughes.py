@@ -18,12 +18,30 @@ from naval_salvo import (
 
 
 def build_engagement(A0, B0, alpha, beta, z, y, w, x):
+    """Monta o engajamento homogêneo 1×1 de Hughes (1995).
+
+    Convenção canônica (Hughes 1995 / Armstrong 2005):
+      A é a força Vermelha; α = poder ofensivo de A; y = defesa de A;
+                            x = staying power de A.
+      B é a força Azul;     β = poder ofensivo de B; z = defesa de B;
+                            w = staying power de B.
+
+    Equações:
+      ΔA = -max(0, β·B − y·A) / x
+      ΔB = -max(0, α·A − z·B) / w
+
+    Ou seja: cada força é defendida pelos seus próprios interceptadores
+    (y intercepta os tiros β do Azul; z intercepta os tiros α do
+    Vermelho).
+    """
     blue = Force("Blue", [UnitType("B", Domain.SURFACE, staying_power=w, initial_strength=B0)])
     red = Force("Red", [UnitType("A", Domain.SURFACE, staying_power=x, initial_strength=A0)])
 
+    # Blue → Red: Blue atira (β); Red intercepta com sua própria defesa y.
     blue_attacks_red = DirectionalParameters.zeros(blue, red)
     blue_attacks_red.set("B", "A", PairParameters(p_offense=beta, p_defense=y))
 
+    # Red → Blue: Red atira (α); Blue intercepta com sua própria defesa z.
     red_attacks_blue = DirectionalParameters.zeros(red, blue)
     red_attacks_blue.set("A", "B", PairParameters(p_offense=alpha, p_defense=z))
 
@@ -38,20 +56,32 @@ def build_engagement(A0, B0, alpha, beta, z, y, w, x):
 
 st.title("Hughes 1995 — modelo homogêneo 1×1")
 st.markdown("Modelo clássico de combate por salvas entre duas forças homogêneas.")
-st.latex(r"\Delta A = \max\left(0, \frac{\beta B - zA}{x}\right), \quad \Delta B = \max\left(0, \frac{\alpha A - yB}{w}\right)")
+st.latex(
+    r"\Delta A = -\frac{\max(0,\ \beta B - yA)}{x}, \quad "
+    r"\Delta B = -\frac{\max(0,\ \alpha A - zB)}{w}"
+)
+st.caption(
+    "Convenção: A é a força Vermelha (α, y, x); B é a força Azul (β, z, w). "
+    "Cada força é defendida pelos seus próprios interceptadores — *y* "
+    "intercepta os tiros β do Azul; *z* intercepta os tiros α do Vermelho."
+)
 
 left, right = st.columns(2)
 with left:
     st.subheader("🔴 Força Vermelha — A")
     A0 = st.number_input("A₀ — unidades iniciais", 1.0, 200.0, 4.0, 1.0)
     alpha = st.number_input("α — poder ofensivo", 0.0, 100.0, 2.0, 0.1)
-    z = st.number_input("z — defesa", 0.0, 100.0, 1.0, 0.1)
+    y = st.number_input("y — defesa", 0.0, 100.0, 1.0, 0.1,
+                        help="Interceptações por unidade Vermelha por salva, "
+                             "contra os tiros β do Azul.")
     x = st.number_input("x — staying power", 0.1, 100.0, 2.0, 0.1)
 with right:
     st.subheader("🔵 Força Azul — B")
     B0 = st.number_input("B₀ — unidades iniciais", 1.0, 200.0, 4.0, 1.0)
     beta = st.number_input("β — poder ofensivo", 0.0, 100.0, 2.0, 0.1)
-    y = st.number_input("y — defesa", 0.0, 100.0, 1.0, 0.1)
+    z = st.number_input("z — defesa", 0.0, 100.0, 1.0, 0.1,
+                        help="Interceptações por unidade Azul por salva, "
+                             "contra os tiros α do Vermelho.")
     w = st.number_input("w — staying power", 0.1, 100.0, 2.0, 0.1)
 
 n_salvos = st.slider("Número de salvas", 1, 20, 5)
@@ -95,7 +125,15 @@ with st.expander("Tabela de trajetória"):
     st.dataframe(history, use_container_width=True, hide_index=True)
 
 with st.expander("Verificação da primeira salva"):
-    dA = max(0.0, (beta * B0 - z * A0) / x)
-    dB = max(0.0, (alpha * A0 - y * B0) / w)
-    st.write(f"ΔA = {dA:.6f}; A₁ esperado = {A0 - dA:.6f}")
-    st.write(f"ΔB = {dB:.6f}; B₁ esperado = {B0 - dB:.6f}")
+    # Fórmula canônica corrigida:
+    # ΔA usa y (defesa do próprio Vermelho), ΔB usa z (defesa do próprio Azul).
+    dA = max(0.0, (beta * B0 - y * A0) / x)
+    dB = max(0.0, (alpha * A0 - z * B0) / w)
+    A1 = max(0.0, A0 - dA)
+    B1 = max(0.0, B0 - dB)
+    st.write(f"ΔA = max(0, β·B₀ − y·A₀) / x = "
+             f"max(0, {beta}·{B0} − {y}·{A0}) / {x} = **{dA:.6f}**")
+    st.write(f"A₁ esperado = max(0, A₀ − ΔA) = **{A1:.6f}**")
+    st.write(f"ΔB = max(0, α·A₀ − z·B₀) / w = "
+             f"max(0, {alpha}·{A0} − {z}·{B0}) / {w} = **{dB:.6f}**")
+    st.write(f"B₁ esperado = max(0, B₀ − ΔB) = **{B1:.6f}**")
