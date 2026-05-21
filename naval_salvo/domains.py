@@ -9,11 +9,11 @@ Phase 1 specification (document 1.4 §2):
     D = {S, U, A, C, X}
     where:
         S  -- Surface       (surface combatants, USVs, helicopters carried,
-                              minas de superfície, plataformas Pré-Sal)
-        U  -- Underwater    (submarines, UUVs, minas submarinas)
+                              surface mines, Pre-Salt platforms)
+        U  -- Underwater    (submarines, UUVs, submarine mines)
         A  -- Air           (aircraft, UAVs)
         C  -- Coastal       (coastal artillery, anti-ship missile batteries,
-                              minas costeiras)
+                              coastal mines)
         X  -- Cyber-EM      (cyber/electromagnetic effects; sub-types
                               X_C2, X_SEN, X_WPN, X_LOG)
 
@@ -59,11 +59,11 @@ class Domain(str, Enum):
                       capability and reduced staying power.
     UNDERWATER('U') : Submarines and UUVs.  Immune to cyber by construction:
                       delta_X = 0 for all U-typed units (decision 1.4
-                      §2.3.d).  Minas submarinas are an U sub-type.
+                      §2.3.d).  Submarine mines are a U sub-type.
     AIR       ('A') : Aircraft, UAVs.  Highest combat tempo (Hausken-Moxnes
                       2026 motivates t_char^A << t_char^S).
     COASTAL   ('C') : Coastal anti-ship missile batteries, coastal artillery,
-                      minas costeiras (sub-types of C in this model).
+                      coastal mines (sub-types of C in this model).
     CYBER     ('X') : Cyber-electromagnetic effects.  Decomposed internally
                       into sub-types X_C2, X_SEN, X_WPN, X_LOG with
                       *intra-X* lethal attrition only (no regeneration:

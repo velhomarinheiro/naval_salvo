@@ -2,7 +2,7 @@
 naval_salvo.scenarios.bacia_campos
 ==================================
 
-Defesa da Bacia de Campos -- the central case study of the SIGE 2026
+Defence of the Campos Basin -- the central case study of the SIGE 2026
 paper.
 
 Scope (Phase 1 doc 1.4 §5, Step 4 of the implementation plan):
@@ -438,7 +438,7 @@ def _build_forces(config: BaciaCamposConfig) -> tuple[Force, Force]:
             "at least one attacker."
         )
 
-    red = Force(label="Adversario", unit_types=red_unit_types)
+    red = Force(label="Adversary", unit_types=red_unit_types)
     return blue, red
 
 

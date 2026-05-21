@@ -11,9 +11,9 @@ from naval_salvo.validation import (
     jph_minute_one_delta_good_hope,
 )
 
-st.title("JPH 2001 — reprodução de Coronel")
+st.title("JPH 2001 — Coronel reproduction")
 st.markdown(
-    "Reprodução do primeiro minuto do exemplo trabalhado por Johns, Pilnick e Hughes para a Batalha de Coronel."
+    "Reproduction of the first minute of the worked example by Johns, Pilnick and Hughes for the Battle of Coronel."
 )
 
 state, params, adm = build_coronel_engagement()
@@ -22,21 +22,21 @@ result = salvo_step(state, params, adm, apply=False)
 rows = []
 for i, group in enumerate(BRITISH_GROUPS):
     rows.append({
-        "Lado": "Britânico/Azul",
-        "Grupo": group.name,
-        "Navios": group.n_ships,
+        "Side": "British/Blue",
+        "Group": group.name,
+        "Ships": group.n_ships,
         "Kernel": result.blue_raw_kernel[i],
-        "Perda do grupo": result.blue_losses[i],
-        "Δ por navio": result.blue_losses[i] / group.n_ships,
+        "Group loss": result.blue_losses[i],
+        "Δ per ship": result.blue_losses[i] / group.n_ships,
     })
 for i, group in enumerate(GERMAN_GROUPS):
     rows.append({
-        "Lado": "Alemão/Vermelho",
-        "Grupo": group.name,
-        "Navios": group.n_ships,
+        "Side": "German/Red",
+        "Group": group.name,
+        "Ships": group.n_ships,
         "Kernel": result.red_raw_kernel[i],
-        "Perda do grupo": result.red_losses[i],
-        "Δ por navio": result.red_losses[i] / group.n_ships,
+        "Group loss": result.red_losses[i],
+        "Δ per ship": result.red_losses[i] / group.n_ships,
     })
 
 df = pd.DataFrame(rows)
@@ -45,10 +45,10 @@ st.dataframe(df, use_container_width=True, hide_index=True)
 analytical = jph_minute_one_delta_good_hope()
 engine = result.blue_losses[0] / BRITISH_GROUPS[0].n_ships
 st.success(
-    f"Good Hope: analítico = {analytical:.10f}; engine = {engine:.10f}; diferença = {abs(analytical-engine):.2e}."
+    f"Good Hope: analytical = {analytical:.10f}; engine = {engine:.10f}; difference = {abs(analytical-engine):.2e}."
 )
 
-with st.expander("Interpretação"):
+with st.expander("Interpretation"):
     st.markdown(
-        "A reprodução em precisão de máquina indica que a generalização multidomínio preserva o caso heterogêneo clássico como limite."
+        "The machine-precision reproduction indicates that the multi-domain generalisation preserves the classical heterogeneous case as a limit."
     )

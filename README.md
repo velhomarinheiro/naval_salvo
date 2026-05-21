@@ -1,16 +1,16 @@
-# Calculadora de Equação de Salva Multidomínio
+# Multi-Domain Salvo Equation Calculator
 
-App Streamlit para o pacote `naval_salvo`, com páginas para Hughes 1995, JPH/Coronel, Bacia de Campos, análise cyber e validação.
+Streamlit app for the `naval_salvo` package, with pages for Hughes 1995, JPH/Coronel, Campos Basin, cyber analysis, and validation.
 
-## Rodar localmente
+## Run locally
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Deploy no Streamlit Community Cloud
+## Deploy to Streamlit Community Cloud
 
 - Main file path: `app.py`
 - Python dependencies: `requirements.txt`
-- O pacote local `naval_salvo/` deve ficar na raiz do repositório.
+- The local `naval_salvo/` package must be placed at the repository root.

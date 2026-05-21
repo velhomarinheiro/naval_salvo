@@ -6,8 +6,8 @@ import streamlit as st
 
 from naval_salvo import phi_sigmoid
 
-st.title("Análise cibernética — função Φ")
-st.markdown("Visualização da sigmoide inversa usada no modulador cibernético canônico.")
+st.title("Cyber analysis — Φ function")
+st.markdown("Visualisation of the inverse sigmoid used in the canonical cyber modulator.")
 st.latex(r"\Phi^p(R)=\frac{1}{1+(R/r_0)^k}")
 
 col1, col2 = st.columns(2)
@@ -24,6 +24,6 @@ fig.add_vline(x=r0, line_dash="dot")
 st.plotly_chart(fig, use_container_width=True)
 
 st.markdown(
-    f"Com r₀ = {r0:.1f}, a meia degradação ocorre quando R = {r0:.1f}. "
-    f"Com k = {k:.1f}, a transição é {'suave' if k < 2 else 'moderada' if k < 4 else 'abrupta'}."
+    f"With r₀ = {r0:.1f}, half-degradation occurs when R = {r0:.1f}. "
+    f"With k = {k:.1f}, the transition is {'smooth' if k < 2 else 'moderate' if k < 4 else 'sharp'}."
 )

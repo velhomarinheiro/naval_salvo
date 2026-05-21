@@ -113,10 +113,10 @@ class CampaignTrajectory:
         from .domains import DOMAIN_ORDER, Domain
         # Pick the right history.
         side_l = side.lower()
-        if side_l in ("blue", "azul"):
+        if side_l == "blue":
             hist = self.blue_strength_history
             unit_types = self._blue_unit_types
-        elif side_l in ("red", "vermelho"):
+        elif side_l == "red":
             hist = self.red_strength_history
             unit_types = self._red_unit_types
         else:

@@ -74,8 +74,8 @@ The paper's eq. (13) writes ``R^p = Σ w_k B_k / Σ w_k A_k`` without
 fully fixing whether A and B in eq. (13) are the same A, B as in
 eq. (4) (the two sides of the engagement) or whether they refer to
 "side whose coefficient is being modulated" vs. "opponent" generically.
-The text of §4.2 ("Quando B^(y) → 0, ... Φ^p → 1; quando o atacante
-cibernético é dominante, Φ^p → 0") is consistent with the reading
+The text of §4.2 ("When B^(y) → 0, ... Φ^p → 1; when the cyber
+attacker dominates, Φ^p → 0") is consistent with the reading
 "B = cyber attacker against this channel, A = the side whose kinetic
 coefficient is being modulated (i.e., the cyber defender for this
 channel)".  This implementation uses that operational reading.  If
