@@ -164,6 +164,35 @@ st.markdown(
 )
 
 
+st.subheader("Salva Estocástica — troca Monte Carlo com ordem de engajamento")
+
+st.markdown(
+    """
+    Esta página apresenta a **versão estocástica** do modelo multidomínio,
+    seguindo Armstrong (2005, 2014). Em vez de uma única trajetória exata,
+    cada engajamento é simulado muitas vezes: os fogos ofensivos e as
+    interceptações são sorteados de **distribuições binomiais** e o dano
+    por míssil não interceptado de uma **distribuição normal**. O resultado
+    é uma *distribuição* de desfechos — probabilidades de vitória para cada
+    lado e a dispersão de unidades sobreviventes — em vez de um único valor
+    determinístico.
+
+    A troca de fogo pode ser **simultânea** ou **sequencial** (Azul atira
+    primeiro / Vermelho atira primeiro). No modo sequencial, o fogo de
+    retorno é executado apenas pelos **sobreviventes** da primeira salva, o
+    que captura o valor da iniciativa: atirar primeiro é, em média, ao menos
+    tão bom quanto atirar simultaneamente, que por sua vez é ao menos tão
+    bom quanto atirar em segundo.
+
+    Ambas as forças podem ser compostas a partir da **mesma paleta de
+    plataformas** do cenário multidomínio — duas classes de superfície, um
+    submarino, aviação de ataque, uma bateria costeira e um ativo de valor
+    tipo FPSO — e as convenções canônicas são preservadas, incluindo a
+    modulação ciber Φ e a imunidade ciber dos submarinos.
+    """
+)
+
+
 st.subheader("Validação — verificação numérica e sensibilidade")
 
 st.markdown(

@@ -30,6 +30,15 @@ from .cyber import (
 )
 from .dynamics import SalvoResult, salvo_step
 from .solver import CampaignTrajectory, run_campaign
+from .stochastic import (
+    EngagementOrder,
+    HomogeneousForce,
+    MultiDomainForce,
+    StochasticResult,
+    UnitGroup,
+    run_homogeneous_battle,
+    run_multidomain_battle,
+)
 from .scenarios import BACIA_CAMPOS_PARAMETERS, BaciaCamposConfig, build_bacia_campos
 from .validation import (
     BRITISH_GROUPS,
