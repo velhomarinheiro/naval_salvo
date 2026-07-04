@@ -23,6 +23,7 @@ pages = {
             icon="🌊",
         ),
         st.Page(PAGES_DIR / "4_Cyber.py", title="Cyber", icon="🛰️"),
+        st.Page(PAGES_DIR / "8_Stochastic.py", title="Stochastic Salvo", icon="🎲"),
     ],
     "Documentation": [
         st.Page(PAGES_DIR / "5_Validation.py", title="Validation", icon="✅"),
