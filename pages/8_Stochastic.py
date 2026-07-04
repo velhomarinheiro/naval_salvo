@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from naval_salvo.stochastic import (
-    EngagementOrder, MultiDomainForce, UnitGroup,
+    EngagementOrder, MultiDomainForce, NAVAL_DOMAINS, UnitGroup,
     run_multidomain_battle, phi,
 )
 
@@ -28,6 +28,12 @@ st.markdown(
     "distribution, and the fire exchange can be **simultaneous** or "
     "**sequential** (Blue first / Red first). In sequential mode, return "
     "fire is executed only by the **survivors** of the first salvo."
+)
+st.markdown(
+    "Both forces share the **same platform palette** as the Campos Basin "
+    "multi-domain scenario: two surface classes, a submarine (underwater, "
+    "cyber-immune), strike aviation, a coastal battery, and an FPSO-type "
+    "value asset. Set a slot's quantity to **0** to leave it out of a force."
 )
 
 ORDER_LABELS = {
@@ -61,11 +67,34 @@ with st.sidebar:
     st.caption("Submarines are immune to cyber degradation (χ).")
 
 
-def force_editor(label: str, defaults: list, key: str) -> list:
-    """Force composition editor (unit groups)."""
+DOMAIN_LABELS = {
+    "s": "Surface",
+    "u": "Underwater",
+    "a": "Air",
+    "c": "Coastal",
+}
+
+
+def force_editor(defaults: list, key: str) -> list:
+    """Force composition editor -- one expander per platform slot.
+
+    Each slot has a fixed domain (matching the Campos Basin palette).
+    Setting a slot's quantity to 0 leaves it out of the force. Names are
+    de-duplicated within the force so they remain valid stock keys.
+    """
     groups = []
+    used_names: set[str] = set()
     for i, d in enumerate(defaults):
-        with st.expander(f"{d['name']}", expanded=(i == 0)):
+        dom = d["domain"]
+        dom_label = DOMAIN_LABELS[dom]
+        title = f"{d['slot']} — {d['name']} ({dom_label})"
+        with st.expander(title, expanded=(i == 0)):
+            note = f"Domain: **{dom_label}** (`{dom}`)."
+            if dom == "u":
+                note += " Immune to cyber degradation (χ)."
+            if dom not in NAVAL_DOMAINS:
+                note += " Support arm — does not count toward the naval verdict."
+            st.caption(note)
             c1, c2, c3 = st.columns(3)
             units = c1.number_input("Units", 0.0, 50.0, float(d["units"]),
                                     1.0, key=f"{key}_u{i}")
@@ -79,16 +108,60 @@ def force_editor(label: str, defaults: list, key: str) -> list:
             p_def = c5.slider("p(interception)", 0.0, 1.0, d["p_def"], 0.01,
                               key=f"{key}_pd{i}")
             stay = c6.number_input("Staying power (hits)", 1.0, 10.0,
-                                   round(1.0 / d["mu_v"], 1), 0.5,
+                                   float(d["staying"]), 0.5,
                                    key=f"{key}_sp{i}")
             sigma_v = st.slider("σ of the damage per missile", 0.0, 0.5,
                                 d["sigma_v"], 0.01, key=f"{key}_sv{i}")
+            nm = d["name"]
+            base, k = nm, 2
+            while nm in used_names:
+                nm = f"{base} ({k})"
+                k += 1
+            used_names.add(nm)
             groups.append(UnitGroup(
-                name=d["name"], domain=d["domain"], units=units,
+                name=nm, domain=dom, units=units,
                 n_off=n_off, p_off=p_off, n_def=n_def, p_def=p_def,
                 mu_v=1.0 / stay, sigma_v=sigma_v,
             ))
     return groups
+
+
+# ---------------------------------------------------------------------------
+# Platform palette -- mirrors the Campos Basin multi-domain scenario:
+# two surface classes, a submarine, strike aviation, a coastal battery and
+# an FPSO-type value asset. Each side may compose from the full palette;
+# defaults follow the Campos Basin scenario (a slot with quantity 0 is
+# simply left out of the force).
+# ---------------------------------------------------------------------------
+BLUE_DEFAULTS = [
+    dict(slot="Surface — Type 1", name="Class A Frigate", domain="s", units=2,
+         n_off=4, p_off=0.67, n_def=2, p_def=0.67, staying=3.0, sigma_v=0.11),
+    dict(slot="Surface — Type 2", name="Corvette/Patrol", domain="s", units=2,
+         n_off=2, p_off=0.60, n_def=1, p_def=0.50, staying=2.0, sigma_v=0.11),
+    dict(slot="Submarine", name="Conventional submarine", domain="u", units=1,
+         n_off=4, p_off=0.80, n_def=0, p_def=0.0, staying=2.0, sigma_v=0.15),
+    dict(slot="Strike aviation", name="Blue strike aviation", domain="a", units=0,
+         n_off=2, p_off=0.75, n_def=0, p_def=0.0, staying=1.0, sigma_v=0.15),
+    dict(slot="Coastal battery", name="Coastal battery", domain="c", units=1,
+         n_off=3, p_off=0.65, n_def=0, p_def=0.0, staying=4.0, sigma_v=0.11),
+    dict(slot="Value asset (FPSO)", name="FPSO (Pre-Salt)", domain="s", units=4,
+         n_off=0, p_off=0.0, n_def=0, p_def=0.0, staying=6.0, sigma_v=0.0),
+]
+
+RED_DEFAULTS = [
+    dict(slot="Surface — Type 1", name="Destroyer", domain="s", units=2,
+         n_off=4, p_off=0.60, n_def=2, p_def=0.60, staying=4.0, sigma_v=0.11),
+    dict(slot="Surface — Type 2", name="Adv. Frigate", domain="s", units=2,
+         n_off=3, p_off=0.60, n_def=2, p_def=0.55, staying=3.0, sigma_v=0.11),
+    dict(slot="Submarine", name="Adversary submarine", domain="u", units=0,
+         n_off=4, p_off=0.80, n_def=0, p_def=0.0, staying=2.0, sigma_v=0.15),
+    dict(slot="Strike aviation", name="Red strike aviation", domain="a", units=4,
+         n_off=2, p_off=0.75, n_def=0, p_def=0.0, staying=1.0, sigma_v=0.15),
+    dict(slot="Coastal battery", name="Coastal battery", domain="c", units=0,
+         n_off=3, p_off=0.60, n_def=0, p_def=0.0, staying=4.0, sigma_v=0.11),
+    dict(slot="Value asset", name="Value asset", domain="s", units=0,
+         n_off=0, p_off=0.0, n_def=0, p_def=0.0, staying=6.0, sigma_v=0.0),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -97,23 +170,23 @@ def force_editor(label: str, defaults: list, key: str) -> list:
 col_b, col_r = st.columns(2)
 with col_b:
     st.subheader("🔵 Blue Force")
-    blue_groups = force_editor("Blue", [
-        dict(name="Frigates (s)", domain="s", units=4, n_off=4, p_off=0.67,
-             n_def=2, p_def=0.67, mu_v=0.33, sigma_v=0.11),
-        dict(name="Strike aviation (a)", domain="a", units=2, n_off=2,
-             p_off=0.75, n_def=0, p_def=0.0, mu_v=0.5, sigma_v=0.15),
-    ], key="blue")
+    blue_groups_all = force_editor(BLUE_DEFAULTS, key="blue")
 with col_r:
     st.subheader("🔴 Red Force")
-    red_groups = force_editor("Red", [
-        dict(name="Escorts (s)", domain="s", units=5, n_off=4, p_off=0.60,
-             n_def=2, p_def=0.60, mu_v=0.33, sigma_v=0.11),
-        dict(name="Submarine (u)", domain="u", units=1, n_off=4, p_off=0.80,
-             n_def=0, p_def=0.0, mu_v=0.5, sigma_v=0.15),
-    ], key="red")
+    red_groups_all = force_editor(RED_DEFAULTS, key="red")
+
+# Only slots with a positive quantity join the force.
+blue_groups = [g for g in blue_groups_all if g.units > 0]
+red_groups = [g for g in red_groups_all if g.units > 0]
 
 blue = MultiDomainForce("Blue", blue_groups, cyber_offense=cyber_blue)
 red = MultiDomainForce("Red", red_groups, cyber_offense=cyber_red)
+
+st.caption(
+    "The win verdict considers **naval forces only** (surface + underwater). "
+    "Air and coastal units contribute fire as supporting arms but do not, by "
+    "themselves, decide the outcome."
+)
 
 phi_b = phi(cyber_red - cyber_blue, k_cyber)
 phi_r = phi(cyber_blue - cyber_red, k_cyber)
@@ -124,7 +197,11 @@ if phi_b < 1.0 or phi_r < 1.0:
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
-if st.button("▶️ Run simulation", type="primary"):
+forces_ok = bool(blue_groups) and bool(red_groups)
+if not forces_ok:
+    st.error("Each force needs at least one platform slot with quantity ≥ 1.")
+
+if st.button("▶️ Run simulation", type="primary", disabled=not forces_ok):
     orders = (list(ORDER_LABELS.items()) if compare_all
               else [(order_label, ORDER_LABELS[order_label])])
 
