@@ -162,6 +162,35 @@ st.markdown(
 )
 
 
+st.subheader("Stochastic Salvo — Monte Carlo exchange with engagement order")
+
+st.markdown(
+    """
+    This page presents the **stochastic version** of the multi-domain
+    model, following Armstrong (2005, 2014). Instead of a single exact
+    trajectory, each engagement is simulated many times: offensive fires
+    and interceptions are drawn from **binomial distributions** and the
+    damage per non-intercepted missile from a **normal distribution**. The
+    result is a *distribution* of outcomes — win probabilities for each
+    side and the spread of surviving units — rather than one deterministic
+    value.
+
+    The fire exchange can be **simultaneous** or **sequential** (Blue
+    fires first / Red fires first). In the sequential mode, return fire is
+    executed only by the **survivors** of the first salvo, which captures
+    the value of the initiative: firing first is, on average, at least as
+    good as firing simultaneously, which in turn is at least as good as
+    firing second.
+
+    Both forces can be composed from the **same platform palette** as the
+    multi-domain scenario — two surface classes, a submarine, strike
+    aviation, a coastal battery, and an FPSO-type value asset — and the
+    canonical conventions are preserved, including cyber modulation Φ and
+    submarine cyber immunity.
+    """
+)
+
+
 st.subheader("Validation — numerical verification and sensitivity")
 
 st.markdown(
