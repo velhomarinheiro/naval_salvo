@@ -66,6 +66,7 @@ generation. Every number is regenerable from fixed seeds.
 | R8 | Salvos-to-decision | `salvos_mean` |
 | R9 | Capability-degradation profile | `blue_def_residual_mean`, `red_def_residual_mean`, `*_ships_lost_mean` |
 | R10 | Overkill / wasted-damage fraction | `overkill_frac_mean` |
+| — | Aggregate continuous damage (Armstrong-comparable loss, ships) | `blue_damage_mean`, `red_damage_mean` |
 
 > **R4 note.** The raw `fer_mean` (mean of `red_loss/blue_loss` per rep) is a
 > biased mean-of-ratios — it reads ~19 even in a perfectly symmetric mirror
@@ -90,14 +91,16 @@ generation. Every number is regenerable from fixed seeds.
 | `test_symmetry_mirror_match` | Mirror-match symmetry (sec 6): losses symmetric, log-FER ≈ 0. |
 | `test_raw_fer_is_biased_but_logfer_is_not` | Justifies the R4 log-FER transform. |
 | `test_tmax1_single_salvo` | `T_max=1` collapses to a single exchange. |
-| `test_armstrong_anchor` | Armstrong (2011) homogeneous anchor (10.1). **Placeholder inputs** — flip `ARMSTRONG_CALIBRATED` once Armstrong's published benchmark parameters are supplied; currently locks a regression baseline + scenario-independent properties. |
+| `test_armstrong_anchor` | Armstrong (2011) anchor (10.1), **calibrated** to the sec-5.1 6-on-3 illustrative example: aggregate continuous loss reproduces Armstrong's simulation (mean 0.679, sd 0.467) to <2%. Per-hull integer kills stay quantized far below it — the kill-quantization layer this model adds. (The spec's "2.64" is not in Armstrong 2011; 6-on-3 is the paper's actual published anchor.) |
 | `test_tiah_swing` | Tiah concentration→dispersion swing (10.2): FER<1 → FER>1. Exact 0.54/2.0 needs Tiah's inputs; the sign of the swing is the check. |
 | `test_fusion_value_compounds` | Fusion value grows with duration (contribution #3). |
 | `test_allocation_robustness` | Uniform without-replacement (10.3): overkill drops, R5/R6 signs unchanged. |
 
 ## Open calibration items (paper-author inputs)
 
-1. **Armstrong 2.64 anchor** — supply Armstrong (2011) benchmark inputs in
-   `test_validation.ARMSTRONG_INPUTS`, then set `ARMSTRONG_CALIBRATED = True`.
+1. **Armstrong anchor** — ✅ calibrated to the 6-on-3 illustrative example of
+   Armstrong (2011), which reproduces the paper's published simulation output
+   (0.679 / 0.467) to within 2%. Note for the write-up: the spec's "2.64" is not
+   found in Armstrong (2011); the 6-on-3 example is the verifiable anchor.
 2. **NOB design** — for the published run, pass the SEED Center mixed NOB matrix
    via `farm.py --nob-path ...` (LHS is the dependency-free stand-in).

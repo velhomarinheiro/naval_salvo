@@ -200,6 +200,7 @@ def simulate(blue_spec, red_spec, params, rng):
     alloc = params.get("alloc", "with_replacement")  # sec 10.3 robustness excursion
 
     delivered_BR = wasted_BR = 0.0  # blue -> red offensive efficiency
+    dmg_to_B = 0.0                   # aggregate continuous damage delivered to Blue (red->blue)
     salvos = 0
     for t in range(1, Tmax + 1):
         salvos = t
@@ -207,10 +208,10 @@ def simulate(blue_spec, red_spec, params, rng):
             lk = _launch(B, sB, p_oB, p_dR, R, tR, rng)
             dv, ws = _resolve(R, lk, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
             lk = _launch(R, sR, p_oR, p_dB, B, tB, rng)
-            _resolve(B, lk, sd, rng, alloc)
+            dv2, _ = _resolve(B, lk, sd, rng, alloc); dmg_to_B += dv2
         elif t == 1 and order == "red_first":
             lk = _launch(R, sR, p_oR, p_dB, B, tB, rng)
-            _resolve(B, lk, sd, rng, alloc)
+            dv2, _ = _resolve(B, lk, sd, rng, alloc); dmg_to_B += dv2
             lk = _launch(B, sB, p_oB, p_dR, R, tR, rng)
             dv, ws = _resolve(R, lk, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
         else:
@@ -218,7 +219,7 @@ def simulate(blue_spec, red_spec, params, rng):
             lk_b = _launch(B, sB, p_oB, p_dR, R, tR, rng)
             lk_r = _launch(R, sR, p_oR, p_dB, B, tB, rng)
             dv, ws = _resolve(R, lk_b, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
-            _resolve(B, lk_r, sd, rng, alloc)
+            dv2, _ = _resolve(B, lk_r, sd, rng, alloc); dmg_to_B += dv2
 
         blue_cp, red_cp = _cp_frac(B), _cp_frac(R)
         blue_dead = not B["alive"].any()
@@ -241,12 +242,20 @@ def simulate(blue_spec, red_spec, params, rng):
     victory = (red_cp <= theta) and (blue_cp > theta)
     survivors = {str(nm): int(np.sum((B["type"] == nm) & B["alive"])) for nm in np.unique(B["type"])}
     overkill = (wasted_BR / delivered_BR) if delivered_BR > 0 else 0.0
+    # Armstrong (2011) "actual loss": aggregate continuous damage in ships,
+    # truncated to [0, force size]. This is the quantity Armstrong's aggregate
+    # simulation measures; our per-hull integer kills (blue/red_ships_lost) add
+    # a kill-quantization layer on top (spec sec 2/R10). Used by the sec-10.1
+    # validation anchor.
+    blue_damage = min(dmg_to_B, float(len(B["alive"])))
+    red_damage = min(delivered_BR, float(len(R["alive"])))
     return {
         "blue_loss": blue_loss, "red_loss": red_loss, "fer": fer, "logfer": logfer,
         "victory": victory, "salvos": salvos, "survivors": survivors,
         "overkill_frac": overkill,
         "blue_ships_lost": int(np.sum(~B["alive"])),
         "red_ships_lost": int(np.sum(~R["alive"])),
+        "blue_damage": blue_damage, "red_damage": red_damage,
         # R9 capability-degradation profile: residual DEFENSIVE power (offense
         # loss is already in blue_loss/red_loss under the offense-only CP rule).
         "blue_def_residual": _def_frac(B),
@@ -258,7 +267,7 @@ def monte_carlo(blue_spec, red_spec, params, reps=10000, seed=0):
     """Run many battles; return aggregated responses."""
     rng = np.random.default_rng(seed)
     keys = ["blue_loss", "red_loss", "fer", "logfer", "salvos", "overkill_frac",
-            "blue_ships_lost", "red_ships_lost",
+            "blue_ships_lost", "red_ships_lost", "blue_damage", "red_damage",
             "blue_def_residual", "red_def_residual"]
     acc = {k: np.empty(reps) for k in keys}
     wins = 0

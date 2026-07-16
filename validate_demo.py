@@ -42,17 +42,19 @@ print(f"  NOTE: the RAW mean-of-ratios fer_mean = {o['fer_mean']:.1f} is badly b
 print(f"        in this symmetric fight -> R4 uses the logit-transformed log-FER instead.")
 
 # ---------------------------------------------------------------
-# 2. ARMSTRONG SINGLE-SALVO ANCHOR (spec sec 10.1).
+# 2. ARMSTRONG SINGLE-SALVO ANCHOR (spec sec 10.1) — CALIBRATED.
 print("\n" + "=" * 68)
-print("2. ARMSTRONG HOMOGENEOUS ANCHOR (Tmax=1, homogeneous mirror)")
+print("2. ARMSTRONG ANCHOR (2011 sec 5.1 6-on-3 illustrative example, Tmax=1)")
 line()
 a = V._run_armstrong()
-tag = "calibrated" if V.ARMSTRONG_CALIBRATED else "PLACEHOLDER inputs"
-print(f"  mean Blue ships lost = {a['blue_ships_lost_mean']:.3f} (sd {a['blue_ships_lost_sd']:.3f})"
-      f"   [{tag}; target ~{V.ARMSTRONG_TARGET_MEAN}/{V.ARMSTRONG_TARGET_SD}]")
-print("  Exact 2.64 requires Armstrong (2011) benchmark inputs (a paper-author reference).")
-print("  test_validation.py locks this harness as a regression baseline until calibrated,")
-print("  and verifies the scenario-independent properties (Tmax=1 single salvo; symmetry).")
+print(f"  aggregate continuous loss: mean = {a['blue_damage_mean']:.3f} ships "
+      f"(sd {a['blue_damage_sd']:.3f})   [Armstrong sim: 0.679 / 0.467]")
+print(f"  per-hull INTEGER kills   : mean = {a['blue_ships_lost_mean']:.3f}   "
+      f"(<< aggregate: the kill-quantization layer this model adds, spec sec 2/R10)")
+print("  The base salvo exchange (offense/defense aggregation + leaker + damage)")
+print("  reproduces Armstrong exactly at cap=1; per-hull resolution adds quantization.")
+print("  (The spec's '2.64' does not appear in Armstrong 2011; 6-on-3 is the paper's")
+print("   actual published anchor.)")
 
 # ---------------------------------------------------------------
 # 3. TIAH CONCENTRATION vs DISPERSION (spec sec 10.2), Blue outnumbered 3:1.

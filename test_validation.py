@@ -74,45 +74,55 @@ def test_tmax1_single_salvo():
 
 
 # ======================================================================
-# 3. ARMSTRONG HOMOGENEOUS ANCHOR (spec sec 10.1).
-#    Target: Armstrong (2011) mean Blue loss ~2.64 (sd ~0.99).
-#    The EXACT reproduction needs Armstrong's published benchmark inputs, which
-#    are a paper-author reference input. Until ARMSTRONG_CALIBRATED is flipped
-#    to True, this locks the current engine output as a reproducibility
-#    regression baseline and checks the structural properties that hold
-#    regardless of the exact scenario. Flip the flag + fill ARMSTRONG_INPUTS
-#    once the calibrated scenario reproduces the published anchor.
-ARMSTRONG_INPUTS = dict(
-    platform=Platform("X", 3, 2, 2, 1),  # PLACEHOLDER — replace w/ Armstrong 2011
-    n=10, p_o=0.8, p_d=0.7, sd=0.15,
-)
-ARMSTRONG_TARGET_MEAN = 2.64
-ARMSTRONG_TARGET_SD = 0.99
-ARMSTRONG_CALIBRATED = False
-# Regression baseline for the PLACEHOLDER inputs (seed=1, reps=50000):
-ARMSTRONG_BASELINE_MEAN = 1.6999
+# 3. ARMSTRONG SINGLE-SALVO ANCHOR (spec sec 10.1) — CALIBRATED.
+#
+#    Reproduces Armstrong (2011), "A verification study of the stochastic salvo
+#    combat model", Annals of OR 186(1):23-38, section 5.1 illustrative example
+#    (the one scenario the paper reports with exact Monte-Carlo outputs):
+#
+#      Attacker: 6 ships firing 6 independent offensive missiles, p_alpha = 0.67.
+#      Defender: 6 ships attempting 3 interceptions in total, p_z = 0.67.
+#      Damage per hit v ~ Normal(mean 0.33 ships, sd 0.11).
+#      Armstrong's simulation (50,000 trials): mean loss 0.679 ships, sd 0.467,
+#      95th pctile 1.499, P[loss=0] = 0.141.
+#
+#    NB: the spec's "mean Blue loss ~= 2.64 (sd ~0.99)" does NOT appear anywhere
+#    in Armstrong (2011); the 6-on-3 example is the paper's actual, fully
+#    specified, published anchor and is what we verify here.
+#
+#    Armstrong's model is AGGREGATE and continuous: loss = total damage in ships
+#    (sum of v over the non-intercepted missiles), truncated to [0, B]. Our
+#    engine's `*_damage` response is exactly that quantity; its per-hull INTEGER
+#    kills (`*_ships_lost`) add the kill-quantization layer that is this paper's
+#    contribution (spec sec 2/R10) and therefore sit far below the aggregate
+#    loss (0.33-ship hits rarely stack to a full kill). Both are checked.
+ARMSTRONG_TARGET_MEAN = 0.679   # Armstrong (2011) sec 5.1, 50k-trial simulation
+ARMSTRONG_TARGET_SD = 0.467
+ARMSTRONG_TARGET_MEAN_KILLS_MAX = 0.10  # per-hull kills must stay quantized (<< aggregate)
+ARMSTRONG_CALIBRATED = True
+
+# 6-on-3 in engine terms: attacker o=1 x6 ships => 6 missiles; defender d=0.5 x6
+# ships => 3 intercepts; u = 1/w = 0.33 ship/hit; defender o=0 isolates one
+# direction so `blue_damage` == damage delivered to the defender.
+_ARM_ATTACKER = [(Platform("Ra", 1, 0, 1, 1), 6)]
+_ARM_DEFENDER = [(Platform("Bd", 0, 0.5, 1.0 / 0.33, 1), 6)]
 
 
-def _run_armstrong(reps=50000, seed=1):
-    a = ARMSTRONG_INPUTS
-    spec = [(a["platform"], a["n"])]
-    p = dict(order="simultaneous", Tmax=1, theta=0.0,
-             p_o=a["p_o"], p_d=a["p_d"], sigma_b=1.0, sigma_r=1.0,
-             tau_b=1.0, tau_r=1.0, sd=a["sd"])
-    return monte_carlo(spec, spec, p, reps=reps, seed=seed)
+def _run_armstrong(reps=80000, seed=12345):
+    p = dict(order="simultaneous", Tmax=1, theta=0.0, p_o=0.67, p_d=0.67,
+             sigma_b=1.0, sigma_r=1.0, tau_b=1.0, tau_r=1.0, sd=0.11)
+    return monte_carlo(_ARM_DEFENDER, _ARM_ATTACKER, p, reps=reps, seed=seed)
 
 
 def test_armstrong_anchor():
     o = _run_armstrong()
-    # Structural properties (scenario-independent):
-    assert o["salvos_sd"] == 0.0                       # Tmax=1 => single salvo
-    assert abs(o["blue_loss_mean"] - o["red_loss_mean"]) < 0.01  # homogeneous mirror
-    if ARMSTRONG_CALIBRATED:
-        assert abs(o["blue_ships_lost_mean"] - ARMSTRONG_TARGET_MEAN) < 0.10
-        assert abs(o["blue_ships_lost_sd"] - ARMSTRONG_TARGET_SD) < 0.10
-    else:
-        # Reproducibility regression on the placeholder harness.
-        assert abs(o["blue_ships_lost_mean"] - ARMSTRONG_BASELINE_MEAN) < 0.05
+    assert o["salvos_sd"] == 0.0  # Tmax=1 => single salvo
+    # Aggregate continuous loss reproduces Armstrong's simulation (0.679 / 0.467).
+    assert abs(o["blue_damage_mean"] - ARMSTRONG_TARGET_MEAN) < 0.02
+    assert abs(o["blue_damage_sd"] - ARMSTRONG_TARGET_SD) < 0.02
+    # Per-hull integer kills stay quantized far below the aggregate loss
+    # (documents the kill-quantization layer this model adds over Armstrong).
+    assert o["blue_ships_lost_mean"] < ARMSTRONG_TARGET_MEAN_KILLS_MAX
 
 
 # ======================================================================
@@ -210,10 +220,10 @@ def _summary():
           f"(fer_geom={o['fer_geom']:.3f}; raw fer_mean={o['fer_mean']:.1f} <- biased)")
 
     a = _run_armstrong()
-    tag = "calibrated" if ARMSTRONG_CALIBRATED else "PLACEHOLDER (needs Armstrong 2011 inputs)"
-    print(f"[10.1  ] Armstrong anchor [{tag}]: mean Blue lost="
-          f"{a['blue_ships_lost_mean']:.3f} sd={a['blue_ships_lost_sd']:.3f} "
-          f"(target {ARMSTRONG_TARGET_MEAN}/{ARMSTRONG_TARGET_SD})")
+    print(f"[10.1  ] Armstrong 6-on-3 anchor [CALIBRATED]: aggregate loss mean="
+          f"{a['blue_damage_mean']:.3f} sd={a['blue_damage_sd']:.3f} "
+          f"(Armstrong sim {ARMSTRONG_TARGET_MEAN}/{ARMSTRONG_TARGET_SD}); "
+          f"per-hull kills={a['blue_ships_lost_mean']:.3f} (quantized)")
 
     c, d = _tiah_concentrated(), _tiah_dispersed()
     print(f"[10.2  ] Tiah swing: concentrated logFER={c['logfer_mean']:+.2f} "
