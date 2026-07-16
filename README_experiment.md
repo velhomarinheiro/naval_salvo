@@ -39,6 +39,7 @@ generation. Every number is regenerable from fixed seeds.
 | `validate_demo.py` | Readable validation + demonstration narrative. |
 | `test_validation.py` | Automated section-10 regression suite (7 tests). |
 | `gamma_excursion.py` | Cost-convexity (γ) robustness excursion (spec sec 5 → paper sec 5.5). |
+| `extract_noab_design.py` | Deterministic NOAB design extraction from the SEED Center workbook. |
 | `Makefile` | One-command reproduction targets. |
 | `requirements-lock.txt` | Pinned environment. |
 
@@ -117,26 +118,39 @@ generation. Every number is regenerable from fixed seeds.
 ## NOAB process design (paper-scale)
 
 The LHS in `build_process_design` is the reproducible pilot stand-in; the
-published run uses the NPS SEED Center **NOAB mixed design** (`NOAB_Mixed_Designs_v4.xlsx`).
-`load_nob_design()` accepts either the raw coded matrix (rescaled via
-`coded_range`) or a pre-scaled real-unit export (`already_scaled=True`, handoff
-Path A). `build_process_design` auto-runs `check_design()` on any loaded NOB
-design (point count, per-factor ranges, max pairwise correlation) and warns if
-the design is not near-orthogonal. Paper-scale run:
+published run uses the NPS SEED Center **NOAB mixed design**
+(`NOAB_Mixed_Designs_v4.xlsx`, v4). Provenance and extraction are scripted:
 
 ```bash
-# raw coded matrix (set --nob-coded-lo/hi from the workbook's actual coding):
-python3 farm.py --reps 10000 --process-points 128 \
-    --nob-path nob_design_raw.csv --nob-coded-lo -1 --nob-coded-hi 1 \
-    --jobs 8 --out-prefix farm_paperscale
+python3 extract_noab_design.py   # workbook -> nob_design_raw.csv (deterministic)
+```
 
-# or a pre-scaled real-unit export:
-python3 farm.py --reps 10000 --nob-path nob_design_scaled.csv \
-    --nob-already-scaled --jobs 8 --out-prefix farm_paperscale
+- **Source:** sheet `CodedValues up to 75 factors` → a **128-design-point** NOAB
+  mixed design (the "up to 300 factors" family is 512 points; 7 factors don't
+  need it). Columns 51–75 are the 25 continuous factors (`cont1..cont25`), each
+  a balanced permutation of the integers **1..128** (coded range `[1, 128]`).
+- **Selection:** the continuous factors are generic placeholders with no
+  meaningful order and the design is near-orthogonal (max |pairwise corr| among
+  `cont1..cont7` ≈ **0.004**), so we take `cont1..cont7` and map them in order to
+  `sigma_b, sigma_r, tau, rho, p_o, p_d, sd` (documented in `extract_noab_design.py`).
+
+`load_nob_design()` also accepts a pre-scaled real-unit export
+(`already_scaled=True`, handoff Path A) if the workbook's data-entry UI is used
+under Excel instead. `build_process_design` auto-runs `check_design()` on any
+loaded NOB design (point count, per-factor ranges, max pairwise correlation) and
+warns if it is not near-orthogonal. Paper-scale run:
+
+```bash
+python3 farm.py --reps 10000 --process-points 128 \
+    --nob-path nob_design_raw.csv --nob-coded-lo 1 --nob-coded-hi 128 \
+    --jobs 4 --out-prefix farm_paperscale
+# then regenerate figures from the paper-scale results:
+python3 analyze.py   # set RESULTS = "farm_paperscale_results.csv"
 ```
 
 `--jobs N` parallelises over design points (identical results to serial — each
-point is self-seeded). Then `analyze.py` (edit `RESULTS`) regenerates figures.
+point is self-seeded). Design = 10 mixture × 128 process × 3 orders = 3,840
+points × 10,000 reps ≈ 38.4M battles.
 
 ## Open items (paper-author inputs)
 
@@ -144,8 +158,8 @@ point is self-seeded). Then `analyze.py` (edit `RESULTS`) regenerates figures.
    Armstrong (2011), which reproduces the paper's published simulation output
    (0.679 / 0.467) to within 2%. Note for the write-up: the spec's "2.64" is not
    found in Armstrong (2011); the 6-on-3 example is the verifiable anchor.
-2. **NOAB design workbook** — `NOAB_Mixed_Designs_v4.xlsx` must be provided
-   locally (the NPS host `nps.edu` is blocked by this environment's egress
-   policy, so it cannot be fetched here). Once present, export the design sheet
-   per the handoff and run the paper-scale command above. The loader and its
-   sanity check are built and tested against synthetic files.
+2. **NOAB design workbook** — ✅ integrated. `NOAB_Mixed_Designs_v4.xlsx` is
+   provided locally (the NPS host `nps.edu` is blocked by this environment's
+   egress policy); `extract_noab_design.py` regenerates the design CSV from it
+   deterministically. The workbook and the derived CSVs are not versioned (see
+   `.gitignore`); the extraction script + provenance above make them regenerable.
