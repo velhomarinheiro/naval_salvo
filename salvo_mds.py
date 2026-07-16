@@ -12,11 +12,40 @@ Implements the LAFusion 2026 experiment spec, section 3:
 
 Setting Tmax=1 recovers the single-salvo model exactly (used for validation anchors).
 Dependency: numpy only.
+
+--------------------------------------------------------------------------------
+FIXED DEFINITIONS (spec sec 9 mandates fixing/documenting these before running):
+
+  * "Effective combat power" (R1/R2/R3) == residual OFFENSIVE throughput of the
+    surviving hulls: Sum(offense of alive hulls) / Sum(offense at start).
+    Rationale: the paper measures the ability to "attack effectively first" and
+    project fires, so combat effectiveness is indexed by residual offensive
+    output. Defensive/staying capability is NOT folded into this scalar; it is
+    reported separately as the residual-defense fraction (R9 capability-
+    degradation profile) so the offense-only convention stays transparent.
+    To change the convention, edit CP_WEIGHTS below (weights over o/d/w) — this
+    shifts every response and the validation baselines, so treat it as a
+    documented modelling decision, not a tuning knob.
+
+  * theta (combat-effectiveness threshold, R3) == 0.30 by default: a side whose
+    residual combat power falls to <= 30% of its initial value is "ineffective".
+    Victory (R3) == Red ineffective (red_cp <= theta) AND Blue still viable
+    (blue_cp > theta). theta is a documented modelling choice; it moves to a
+    robustness excursion, not the primary factor set.
+
+  * Tmax (max salvos) default 6; allocation rule default uniform-with-replacement
+    (spec sec 3); both are documented settings, not primary factors.
+--------------------------------------------------------------------------------
 """
 from dataclasses import dataclass
 import numpy as np
 
+ENGINE_VERSION = "1.0.0"  # cite in the reproducibility package (spec sec 11)
 FER_EPS = 0.01  # loss floor for the FER ratio / log-FER (caps at +/- log(1+1/EPS))
+
+# Effective-combat-power weighting over (offense, defense, staying). The spec's
+# offense-only convention is (1, 0, 0); change here to re-index combat power.
+CP_WEIGHTS = (1.0, 0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -54,15 +83,21 @@ def make_force(spec):
         mag += [plat.magazine] * n
         typ += [plat.name] * n
     n_tot = len(o)
+    o_arr, d_arr = np.array(o, float), np.array(d, float)
+    w_arr = 1.0 / np.array(u, float)  # staying = 1/u
+    cp0 = CP_WEIGHTS[0] * o_arr + CP_WEIGHTS[1] * d_arr + CP_WEIGHTS[2] * w_arr
     return {
-        "o": np.array(o, float),
-        "d": np.array(d, float),
+        "o": o_arr,
+        "d": d_arr,
         "u": np.array(u, float),
+        "cp": cp0,                       # per-hull effective combat power (CP_WEIGHTS)
         "mag": np.array(mag, int),
         "dmg": np.zeros(n_tot, float),
         "alive": np.ones(n_tot, bool),
         "type": np.array(typ),
-        "o0_sum": float(np.sum(o)),  # initial offensive combat power
+        "o0_sum": float(o_arr.sum()),    # initial offensive power
+        "d0_sum": float(d_arr.sum()),    # initial defensive power (R9)
+        "cp0_sum": float(cp0.sum()),     # initial effective combat power (R1/R3)
     }
 
 
@@ -133,10 +168,21 @@ def _resolve(defn, leakers, sd, rng, alloc="with_replacement"):
 
 
 def _cp_frac(f):
-    """Residual offensive combat-power fraction (alive offense / initial offense)."""
-    if f["o0_sum"] == 0:
+    """Residual EFFECTIVE combat-power fraction (alive CP / initial CP).
+    CP is the CP_WEIGHTS combination over offense/defense/staying (default:
+    offense-only, per the documented spec-sec-9 convention at the top of file)."""
+    if f["cp0_sum"] == 0:
         return 0.0
-    return float(f["o"][f["alive"]].sum()) / f["o0_sum"]
+    return float(f["cp"][f["alive"]].sum()) / f["cp0_sum"]
+
+
+def _def_frac(f):
+    """Residual DEFENSIVE-power fraction (R9 capability-degradation profile):
+    alive defensive throughput / initial. Tracked separately from combat power
+    so the offense-only CP convention stays transparent."""
+    if f["d0_sum"] == 0:
+        return 0.0
+    return float(f["d"][f["alive"]].sum()) / f["d0_sum"]
 
 
 def simulate(blue_spec, red_spec, params, rng):
@@ -201,6 +247,10 @@ def simulate(blue_spec, red_spec, params, rng):
         "overkill_frac": overkill,
         "blue_ships_lost": int(np.sum(~B["alive"])),
         "red_ships_lost": int(np.sum(~R["alive"])),
+        # R9 capability-degradation profile: residual DEFENSIVE power (offense
+        # loss is already in blue_loss/red_loss under the offense-only CP rule).
+        "blue_def_residual": _def_frac(B),
+        "red_def_residual": _def_frac(R),
     }
 
 
@@ -208,7 +258,8 @@ def monte_carlo(blue_spec, red_spec, params, reps=10000, seed=0):
     """Run many battles; return aggregated responses."""
     rng = np.random.default_rng(seed)
     keys = ["blue_loss", "red_loss", "fer", "logfer", "salvos", "overkill_frac",
-            "blue_ships_lost", "red_ships_lost"]
+            "blue_ships_lost", "red_ships_lost",
+            "blue_def_residual", "red_def_residual"]
     acc = {k: np.empty(reps) for k in keys}
     wins = 0
     for i in range(reps):
