@@ -78,12 +78,16 @@ def run(gammas, den, reps, response):
 
 
 def find_tipping(df):
-    """First gamma where the optimum flips from quality (H) to quantity (L)."""
+    """Gamma where the optimum decisively flips from quality (H) to quantity (L).
+
+    Uses the LAST quality->quantity sign change of the quantity-quality index,
+    scanning from high gamma. This is robust to the low-gamma region where
+    P(victory) saturates near 1 and the arg-max mix is dominated by Monte-Carlo
+    noise (many designs win almost always, so ties there are not a real flip)."""
     idx = df["qq_index"].to_numpy()
     g = df["gamma"].to_numpy()
-    for a in range(len(idx) - 1):
-        if idx[a] < 0 <= idx[a + 1] or (idx[a] <= 0 < idx[a + 1]):
-            # linear interpolation of the sign change in the index
+    for a in range(len(idx) - 2, -1, -1):
+        if idx[a] < 0 <= idx[a + 1]:
             x0, x1, y0, y1 = g[a], g[a + 1], idx[a], idx[a + 1]
             return x0 + (0 - y0) * (x1 - x0) / (y1 - y0) if y1 != y0 else x1
     return None

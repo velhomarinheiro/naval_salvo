@@ -107,6 +107,13 @@ generation. Every number is regenerable from fixed seeds.
   reprices Blue's platforms; the budget stays anchored to the γ=1.35 Red
   reference so the high-low mix decision is isolated.
 
+  Pilot finding (P(victory) objective, process centre, ρ=1.1, 6k reps):
+  quality (H-heavy) is optimal through γ≈1.40, and the optimum flips to
+  quantity (L-heavy) at a **tipping γ ≈ 1.45** — so at the baseline γ=1.35 the
+  concentrated-quality design is still favoured, and it takes a markedly higher
+  convexity penalty to tip the high-low mix toward many cheap hulls. Regenerate
+  at paper scale before quoting in §5.5.
+
 ## NOAB process design (paper-scale)
 
 The LHS in `build_process_design` is the reproducible pilot stand-in; the
