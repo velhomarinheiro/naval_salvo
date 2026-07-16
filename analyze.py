@@ -163,8 +163,9 @@ notes.append(f"FIG5: poorer Blue (rho<1.0) with fusion edge (dsig>0.15) P(vict)=
              f"{'substitutes for' if poor_hi > rich_lo else 'does not offset'} budget.")
 
 # ----------------------------------------------------------------------
+_scale = "paper-scale" if "paperscale" in RESULTS else "pilot-scale"
 with open("tables_summary.md", "w") as f:
-    f.write("# Headline numbers (pilot scale — regenerate at paper scale)\n\n")
+    f.write(f"# Headline numbers ({_scale}: {RESULTS}, {len(df)} design points)\n\n")
     for n in notes:
         f.write("- " + n + "\n")
 print("\n".join(notes))
