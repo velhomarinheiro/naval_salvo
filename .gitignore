@@ -24,3 +24,9 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Data-farming run artifacts (regenerable from farm.py / analyze.py)
+farm_design.csv
+farm_results.csv
+fig*_*.png
+tables_summary.md
