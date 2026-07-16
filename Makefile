@@ -46,11 +46,12 @@ gamma: ## cost-convexity excursion (spec sec 5 / paper sec 5.5)
 nob_design_raw.csv: ## extract the NOAB 128-pt design from the workbook
 	$(PY) extract_noab_design.py
 
-paper-noab: nob_design_raw.csv ## paper-scale run on the real NOAB design
+paper-noab: nob_design_raw.csv ## paper-scale run on the real NOAB design + figures
 	$(MAKE) test
 	$(PY) farm.py --reps 10000 --process-points 128 \
 	    --nob-path nob_design_raw.csv --nob-coded-lo 1 --nob-coded-hi 128 \
 	    --jobs $(JOBS) --out-prefix farm_paperscale
+	$(PY) analyze.py farm_paperscale_results.csv
 
 $(RESULTS):
 	$(MAKE) farm

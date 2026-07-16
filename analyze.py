@@ -11,6 +11,8 @@ Reads farm_results.csv (from farm.py) and produces:
 
 Each figure maps to a claim in the spec (sections 1 and 9).
 """
+import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -19,7 +21,10 @@ import matplotlib.pyplot as plt
 
 from salvo_mds import monte_carlo, unit_cost, L_STRIKER, M_BALANCED, H_ESCORT, RED_STD
 
-RESULTS = "farm_results.csv"
+# Results file: CLI arg, else ANALYZE_RESULTS env var, else the pilot default.
+# For the paper-scale run: python3 analyze.py farm_paperscale_results.csv
+RESULTS = (sys.argv[1] if len(sys.argv) > 1
+           else os.environ.get("ANALYZE_RESULTS", "farm_results.csv"))
 RED_FORCE = [(RED_STD, 5)]
 RED_VALUE = 5 * unit_cost(RED_STD)
 plt.rcParams.update({"figure.dpi": 150, "font.size": 9})

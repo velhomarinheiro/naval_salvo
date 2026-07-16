@@ -145,8 +145,10 @@ python3 farm.py --reps 10000 --process-points 128 \
     --nob-path nob_design_raw.csv --nob-coded-lo 1 --nob-coded-hi 128 \
     --jobs 4 --out-prefix farm_paperscale
 # then regenerate figures from the paper-scale results:
-python3 analyze.py   # set RESULTS = "farm_paperscale_results.csv"
+python3 analyze.py farm_paperscale_results.csv
 ```
+
+Or in one step: `make paper-noab JOBS=4`.
 
 `--jobs N` parallelises over design points (identical results to serial — each
 point is self-seeded). Design = 10 mixture × 128 process × 3 orders = 3,840
