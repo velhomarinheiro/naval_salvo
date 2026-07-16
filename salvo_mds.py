@@ -16,6 +16,8 @@ Dependency: numpy only.
 from dataclasses import dataclass
 import numpy as np
 
+FER_EPS = 0.01  # loss floor for the FER ratio / log-FER (caps at +/- log(1+1/EPS))
+
 
 @dataclass(frozen=True)
 class Platform:
@@ -77,30 +79,56 @@ def _launch(att, sigma, p_o, p_d, defn, tau, rng):
     return max(accurate - intercepted, 0)
 
 
-def _resolve(defn, leakers, sd, rng):
-    """Allocate leakers uniformly (with replacement) to alive hulls; apply damage.
-    Returns (delivered, wasted) damage as floats. Wasted = overkill + hits on already-dead hulls."""
+def _apply_leaker(defn, h, sd, rng):
+    """Apply one leaker to hull h. Returns (delivered, wasted) for this hit."""
+    add = max(rng.normal(defn["u"][h], sd), 0.0)
+    if not defn["alive"][h]:
+        return add, add  # hull already dead -> fully wasted
+    needed = 1.0 - defn["dmg"][h]
+    if add >= needed:
+        defn["dmg"][h] = 1.0
+        defn["alive"][h] = False
+        return add, add - needed  # overkill spillover wasted
+    defn["dmg"][h] += add
+    return add, 0.0
+
+
+def _resolve(defn, leakers, sd, rng, alloc="with_replacement"):
+    """Allocate leakers to alive hulls and apply damage.
+
+    alloc = "with_replacement" (spec default, sec 3): each leaker independently
+        hits a uniformly-random alive hull -> concentration/overkill possible.
+    alloc = "without_replacement" (robustness excursion, sec 10.3): leakers are
+        spread to distinct hulls first (a fresh random permutation of the
+        currently-alive hulls is drawn each time the bag empties), which
+        minimises overkill. Qualitative conclusions and the sign of R5/R6 should
+        be unchanged; only R10 (overkill) shifts.
+
+    Returns (delivered, wasted) damage as floats. Wasted = overkill + hits on
+    already-dead hulls."""
     if leakers <= 0:
         return 0.0, 0.0
     alive_idx = np.where(defn["alive"])[0]
     if len(alive_idx) == 0:
         return 0.0, 0.0
-    targets = rng.integers(0, len(alive_idx), size=leakers)
     delivered = wasted = 0.0
-    for t in targets:
-        h = alive_idx[t]
-        add = max(rng.normal(defn["u"][h], sd), 0.0)
-        delivered += add
-        if not defn["alive"][h]:
-            wasted += add
-            continue
-        needed = 1.0 - defn["dmg"][h]
-        if add >= needed:
-            wasted += add - needed
-            defn["dmg"][h] = 1.0
-            defn["alive"][h] = False
-        else:
-            defn["dmg"][h] += add
+    if alloc == "without_replacement":
+        bag = list(rng.permutation(alive_idx))
+        for _ in range(leakers):
+            if not bag:
+                bag = list(rng.permutation(np.where(defn["alive"])[0]))
+                if not bag:
+                    break  # every hull dead
+            h = int(bag.pop())
+            dv, ws = _apply_leaker(defn, h, sd, rng)
+            delivered += dv
+            wasted += ws
+    else:
+        targets = alive_idx[rng.integers(0, len(alive_idx), size=leakers)]
+        for h in targets:
+            dv, ws = _apply_leaker(defn, int(h), sd, rng)
+            delivered += dv
+            wasted += ws
     return delivered, wasted
 
 
@@ -123,6 +151,7 @@ def simulate(blue_spec, red_spec, params, rng):
     sB, sR = params["sigma_b"], params["sigma_r"]
     tB, tR = params.get("tau_b", 1.0), params.get("tau_r", 1.0)
     sd = params["sd"]
+    alloc = params.get("alloc", "with_replacement")  # sec 10.3 robustness excursion
 
     delivered_BR = wasted_BR = 0.0  # blue -> red offensive efficiency
     salvos = 0
@@ -130,20 +159,20 @@ def simulate(blue_spec, red_spec, params, rng):
         salvos = t
         if t == 1 and order == "blue_first":
             lk = _launch(B, sB, p_oB, p_dR, R, tR, rng)
-            dv, ws = _resolve(R, lk, sd, rng); delivered_BR += dv; wasted_BR += ws
+            dv, ws = _resolve(R, lk, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
             lk = _launch(R, sR, p_oR, p_dB, B, tB, rng)
-            _resolve(B, lk, sd, rng)
+            _resolve(B, lk, sd, rng, alloc)
         elif t == 1 and order == "red_first":
             lk = _launch(R, sR, p_oR, p_dB, B, tB, rng)
-            _resolve(B, lk, sd, rng)
+            _resolve(B, lk, sd, rng, alloc)
             lk = _launch(B, sB, p_oB, p_dR, R, tR, rng)
-            dv, ws = _resolve(R, lk, sd, rng); delivered_BR += dv; wasted_BR += ws
+            dv, ws = _resolve(R, lk, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
         else:
             # simultaneous: both launch from start-of-round survivors, then resolve
             lk_b = _launch(B, sB, p_oB, p_dR, R, tR, rng)
             lk_r = _launch(R, sR, p_oR, p_dB, B, tB, rng)
-            dv, ws = _resolve(R, lk_b, sd, rng); delivered_BR += dv; wasted_BR += ws
-            _resolve(B, lk_r, sd, rng)
+            dv, ws = _resolve(R, lk_b, sd, rng, alloc); delivered_BR += dv; wasted_BR += ws
+            _resolve(B, lk_r, sd, rng, alloc)
 
         blue_cp, red_cp = _cp_frac(B), _cp_frac(R)
         blue_dead = not B["alive"].any()
@@ -155,12 +184,19 @@ def simulate(blue_spec, red_spec, params, rng):
     blue_cp, red_cp = _cp_frac(B), _cp_frac(R)
     blue_loss = 1.0 - blue_cp
     red_loss = 1.0 - red_cp
-    fer = (red_loss + 0.01) / (blue_loss + 0.01)
+    # R4 (spec sec 9): FER-analog, logit-transformed for comparability.
+    # The raw ratio (red_loss/blue_loss) is a ratio of random variables whose
+    # per-rep mean is dominated by near-zero denominators (E[X/Y] != E[X]/E[Y]).
+    # log-FER = logit of Red's loss-share red_loss/(red_loss+blue_loss); it is
+    # symmetric (mirror match -> 0), finite, and averages meaningfully.
+    # exp(mean(logfer)) recovers the geometric-mean FER (see monte_carlo).
+    fer = (red_loss + FER_EPS) / (blue_loss + FER_EPS)  # raw ratio (kept for reference)
+    logfer = float(np.log(fer))
     victory = (red_cp <= theta) and (blue_cp > theta)
     survivors = {str(nm): int(np.sum((B["type"] == nm) & B["alive"])) for nm in np.unique(B["type"])}
     overkill = (wasted_BR / delivered_BR) if delivered_BR > 0 else 0.0
     return {
-        "blue_loss": blue_loss, "red_loss": red_loss, "fer": fer,
+        "blue_loss": blue_loss, "red_loss": red_loss, "fer": fer, "logfer": logfer,
         "victory": victory, "salvos": salvos, "survivors": survivors,
         "overkill_frac": overkill,
         "blue_ships_lost": int(np.sum(~B["alive"])),
@@ -171,7 +207,7 @@ def simulate(blue_spec, red_spec, params, rng):
 def monte_carlo(blue_spec, red_spec, params, reps=10000, seed=0):
     """Run many battles; return aggregated responses."""
     rng = np.random.default_rng(seed)
-    keys = ["blue_loss", "red_loss", "fer", "salvos", "overkill_frac",
+    keys = ["blue_loss", "red_loss", "fer", "logfer", "salvos", "overkill_frac",
             "blue_ships_lost", "red_ships_lost"]
     acc = {k: np.empty(reps) for k in keys}
     wins = 0
@@ -183,4 +219,6 @@ def monte_carlo(blue_spec, red_spec, params, reps=10000, seed=0):
     out = {f"{k}_mean": float(acc[k].mean()) for k in keys}
     out.update({f"{k}_sd": float(acc[k].std()) for k in keys})
     out["p_victory"] = wins / reps
+    # Geometric-mean FER = exp(mean log-FER): the robust R4 point estimate.
+    out["fer_geom"] = float(np.exp(out["logfer_mean"]))
     return out

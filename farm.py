@@ -33,7 +33,8 @@ from salvo_mds import (Platform, unit_cost, monte_carlo,
 MASTER_SEED = 20260731  # submission-window opening date; fixed for reproducibility
 
 # ----------------------------------------------------------------------
-# Factor definitions (spec section 7). Primary run: gamma=1, Blue=Red damage params.
+# Factor definitions (spec section 7). Primary run: gamma=1.35 (fixed via
+# unit_cost default), Blue=Red damage params; gamma sweep is a secondary excursion.
 PROCESS_FACTORS = {
     "sigma_b": (0.4, 1.0),
     "sigma_r": (0.4, 1.0),
@@ -262,7 +263,9 @@ def main():
     results.to_csv(f"{args.out_prefix}_results.csv", index=False)
     print(f"Saved {args.out_prefix}_results.csv ({len(results)} rows)")
 
-    for resp in ["red_loss_mean", "p_victory", "fer_mean", "salvos_mean", "overkill_frac_mean"]:
+    # R4 uses logfer_mean (logit-transformed FER); the raw fer_mean is a biased
+    # mean-of-ratios and is deliberately not metamodeled (see salvo_mds.simulate).
+    for resp in ["red_loss_mean", "p_victory", "logfer_mean", "salvos_mean", "overkill_frac_mean"]:
         fit_metamodels(results, resp)
 
 
