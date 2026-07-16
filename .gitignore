@@ -28,5 +28,13 @@ htmlcov/
 # Data-farming run artifacts (regenerable from farm.py / analyze.py)
 farm_design.csv
 farm_results.csv
+farm_paperscale_design.csv
+farm_paperscale_results.csv
 fig*_*.png
 tables_summary.md
+gamma_excursion.csv
+gamma_excursion.png
+# NOAB design workbook / exports (provided locally, not versioned)
+NOAB_Mixed_Designs_v4.xlsx
+nob_design_raw.csv
+nob_design_scaled.csv

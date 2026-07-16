@@ -38,6 +38,7 @@ generation. Every number is regenerable from fixed seeds.
 | `analyze.py` | Paper figures 1–5 + `tables_summary.md`. |
 | `validate_demo.py` | Readable validation + demonstration narrative. |
 | `test_validation.py` | Automated section-10 regression suite (7 tests). |
+| `gamma_excursion.py` | Cost-convexity (γ) robustness excursion (spec sec 5 → paper sec 5.5). |
 | `Makefile` | One-command reproduction targets. |
 | `requirements-lock.txt` | Pinned environment. |
 
@@ -96,11 +97,48 @@ generation. Every number is regenerable from fixed seeds.
 | `test_fusion_value_compounds` | Fusion value grows with duration (contribution #3). |
 | `test_allocation_robustness` | Uniform without-replacement (10.3): overkill drops, R5/R6 signs unchanged. |
 
-## Open calibration items (paper-author inputs)
+## Robustness excursions
+
+- **Cost convexity γ (spec sec 5 → paper sec 5.5)** — `make gamma` (or
+  `python3 gamma_excursion.py`). Sweeps γ ∈ [1.15, 1.55] at the process centre
+  and reports the budget-optimal (s_L, s_M, s_H) at each γ, locating the
+  **tipping γ** where the optimum flips from quality (H-heavy) to quantity
+  (L-heavy). Writes `gamma_excursion.csv` + `gamma_excursion.png`. γ only
+  reprices Blue's platforms; the budget stays anchored to the γ=1.35 Red
+  reference so the high-low mix decision is isolated.
+
+## NOAB process design (paper-scale)
+
+The LHS in `build_process_design` is the reproducible pilot stand-in; the
+published run uses the NPS SEED Center **NOAB mixed design** (`NOAB_Mixed_Designs_v4.xlsx`).
+`load_nob_design()` accepts either the raw coded matrix (rescaled via
+`coded_range`) or a pre-scaled real-unit export (`already_scaled=True`, handoff
+Path A). `build_process_design` auto-runs `check_design()` on any loaded NOB
+design (point count, per-factor ranges, max pairwise correlation) and warns if
+the design is not near-orthogonal. Paper-scale run:
+
+```bash
+# raw coded matrix (set --nob-coded-lo/hi from the workbook's actual coding):
+python3 farm.py --reps 10000 --process-points 128 \
+    --nob-path nob_design_raw.csv --nob-coded-lo -1 --nob-coded-hi 1 \
+    --jobs 8 --out-prefix farm_paperscale
+
+# or a pre-scaled real-unit export:
+python3 farm.py --reps 10000 --nob-path nob_design_scaled.csv \
+    --nob-already-scaled --jobs 8 --out-prefix farm_paperscale
+```
+
+`--jobs N` parallelises over design points (identical results to serial — each
+point is self-seeded). Then `analyze.py` (edit `RESULTS`) regenerates figures.
+
+## Open items (paper-author inputs)
 
 1. **Armstrong anchor** — ✅ calibrated to the 6-on-3 illustrative example of
    Armstrong (2011), which reproduces the paper's published simulation output
    (0.679 / 0.467) to within 2%. Note for the write-up: the spec's "2.64" is not
    found in Armstrong (2011); the 6-on-3 example is the verifiable anchor.
-2. **NOB design** — for the published run, pass the SEED Center mixed NOB matrix
-   via `farm.py --nob-path ...` (LHS is the dependency-free stand-in).
+2. **NOAB design workbook** — `NOAB_Mixed_Designs_v4.xlsx` must be provided
+   locally (the NPS host `nps.edu` is blocked by this environment's egress
+   policy, so it cannot be fetched here). Once present, export the design sheet
+   per the handoff and run the paper-scale command above. The loader and its
+   sanity check are built and tested against synthetic files.

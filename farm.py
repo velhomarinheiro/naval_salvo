@@ -62,11 +62,11 @@ def build_mixture_design():
 
 
 def load_nob_design(path, n_points=None, stack_rotations=1, coded_range=(-1.0, 1.0),
-                     column_order=None):
-    """Load a mixed NOB design (Vieira et al. 2011) from the SEED Center
-    spreadsheet and rescale it to PROCESS_FACTORS ranges.
+                     column_order=None, already_scaled=False):
+    """Load a mixed NOB/NOAB design (NPS SEED Center) and rescale it to the
+    PROCESS_FACTORS ranges.
 
-    path            : csv or xlsx file with the NOB design (coded values).
+    path            : csv or xlsx file with the NOB design.
     n_points        : if given, truncate/subsample to this many rows after
                        stacking (None = use all rows produced).
     stack_rotations : number of rotated copies to stack, as in Kesler et al.
@@ -78,15 +78,20 @@ def load_nob_design(path, n_points=None, stack_rotations=1, coded_range=(-1.0, 1
                        Set to 1 to use the base design unmodified.
     coded_range     : the (low, high) coding used in the source file
                        (SEED Center designs are typically coded to [-1, 1]
-                       or [0, 1] — check the spreadsheet's header/README
-                       and adjust this argument accordingly).
+                       or [0, 1] — check the spreadsheet/readme and set this).
+                       Ignored when already_scaled=True.
     column_order    : list of column names in the source file, in the order
                        they should map onto list(PROCESS_FACTORS). If None,
                        assumes the file's columns are already in that order.
+    already_scaled  : Path A of the handoff. If True, the file already holds
+                       values in the factors' real units (e.g. the NOAB
+                       workbook's data-entry area was given the factor
+                       low/high bounds and produced scaled output). Skips the
+                       coded->range rescale; only validates that every column
+                       lies within its PROCESS_FACTORS range.
 
-    Returns a DataFrame with columns = list(PROCESS_FACTORS), values rescaled
-    to the actual factor ranges. Raises clearly on any mismatch rather than
-    silently falling back to LHS.
+    Returns a DataFrame with columns = list(PROCESS_FACTORS). Raises clearly on
+    any mismatch rather than silently falling back to LHS.
     """
     names = list(PROCESS_FACTORS)
     if path.endswith((".xlsx", ".xls")):
@@ -107,6 +112,26 @@ def load_nob_design(path, n_points=None, stack_rotations=1, coded_range=(-1.0, 1
                               f"Pass column_order= to select/reorder explicitly.")
         raw = raw.iloc[:, :len(names)]
     raw.columns = names
+
+    lo_f = np.array([PROCESS_FACTORS[k][0] for k in names])
+    hi_f = np.array([PROCESS_FACTORS[k][1] for k in names])
+
+    if already_scaled:
+        design = raw.reset_index(drop=True)
+        if n_points is not None:
+            design = design.iloc[:n_points].reset_index(drop=True)
+        vals = design[names].to_numpy(dtype=float)
+        tol = 1e-9 + 1e-6 * (hi_f - lo_f)
+        below = (vals < lo_f - tol).any(axis=0)
+        above = (vals > hi_f + tol).any(axis=0)
+        bad = [names[i] for i in range(len(names)) if below[i] or above[i]]
+        if bad:
+            raise ValueError(
+                f"load_nob_design(already_scaled=True): columns {bad} fall outside "
+                f"their PROCESS_FACTORS ranges. Values are supposed to be pre-scaled "
+                f"to real units; got mins {dict(zip(names, vals.min(0)))} / "
+                f"maxs {dict(zip(names, vals.max(0)))}.")
+        return pd.DataFrame(vals, columns=names)
 
     lo_c, hi_c = coded_range
     stacks = [raw.copy()]
@@ -129,11 +154,31 @@ def load_nob_design(path, n_points=None, stack_rotations=1, coded_range=(-1.0, 1
     if n_points is not None:
         design = design.iloc[:n_points].reset_index(drop=True)
 
-    lo_f = np.array([PROCESS_FACTORS[k][0] for k in names])
-    hi_f = np.array([PROCESS_FACTORS[k][1] for k in names])
     frac = (design[names].to_numpy() - lo_c) / (hi_c - lo_c)
     scaled = lo_f + frac * (hi_f - lo_f)
     return pd.DataFrame(scaled, columns=names)
+
+
+def check_design(design, label="design", max_corr_warn=0.30):
+    """Sanity-check a process design (handoff Step 3): report point count,
+    per-factor min/max, and the maximum absolute pairwise correlation. A high
+    value (> max_corr_warn) usually means columns were picked from mismatched
+    factor blocks or the wrong sheet — warn loudly rather than farm a bad design."""
+    names = list(PROCESS_FACTORS)
+    corr = np.array(design[names].corr().to_numpy(), dtype=float)  # writable copy
+    np.fill_diagonal(corr, 0.0)
+    max_abs = float(np.abs(corr).max())
+    print(f"[check_design] {label}: {len(design)} points, {len(names)} factors; "
+          f"max |pairwise corr| = {max_abs:.3f}")
+    for k in names:
+        lo, hi = PROCESS_FACTORS[k]
+        print(f"    {k:8s} range [{design[k].min():.3f}, {design[k].max():.3f}]  "
+              f"(factor bounds [{lo}, {hi}])")
+    if max_abs > max_corr_warn:
+        print(f"[check_design] WARNING: max |corr| {max_abs:.3f} > {max_corr_warn}. "
+              f"A NOAB design should be near-orthogonal (<~0.2 for 7 factors). "
+              f"Re-check column selection / sheet (handoff Step 3).")
+    return max_abs
 
 
 def build_process_design(n_points, seed, nob_path=None, nob_kwargs=None):
@@ -150,7 +195,9 @@ def build_process_design(n_points, seed, nob_path=None, nob_kwargs=None):
     """
     names = list(PROCESS_FACTORS)
     if nob_path is not None:
-        return load_nob_design(nob_path, n_points=n_points, **(nob_kwargs or {}))
+        design = load_nob_design(nob_path, n_points=n_points, **(nob_kwargs or {}))
+        check_design(design, label=f"NOB design from {nob_path}")
+        return design
     sampler = qmc.LatinHypercube(d=len(names), seed=seed)
     u = sampler.random(n_points)
     lo = np.array([PROCESS_FACTORS[k][0] for k in names])
@@ -158,10 +205,13 @@ def build_process_design(n_points, seed, nob_path=None, nob_kwargs=None):
     return pd.DataFrame(lo + u * (hi - lo), columns=names)
 
 
-def force_from_shares(budget, s_L, s_M, s_H):
+def force_from_shares(budget, s_L, s_M, s_H, gamma=1.35):
+    """Convert budget shares to integer hull counts, pricing platforms at cost
+    convexity `gamma` (spec sec 5). gamma>1.35 penalises the concentrated H hull
+    harder (tilts the buy toward quantity); used by the gamma excursion."""
     spec = []
     for plat, sh in ((L_STRIKER, s_L), (M_BALANCED, s_M), (H_ESCORT, s_H)):
-        n = int(round(budget * sh / unit_cost(plat)))
+        n = int(round(budget * sh / unit_cost(plat, gamma=gamma)))
         if n > 0:
             spec.append((plat, n))
     return spec
@@ -181,8 +231,11 @@ def build_design(n_process, seed, nob_path=None, nob_kwargs=None):
 
 
 def run_design_point(row, reps):
+    # Budget stays anchored to the gamma=1.35 Red reference value; gamma only
+    # reprices Blue's platforms (spec sec 5), isolating the high-low mix effect.
     budget = row["rho"] * RED_VALUE
-    blue = force_from_shares(budget, row["s_L"], row["s_M"], row["s_H"])
+    gamma = float(row.get("gamma", 1.35))
+    blue = force_from_shares(budget, row["s_L"], row["s_M"], row["s_H"], gamma=gamma)
     if not blue:  # degenerate (tiny budget share rounding to zero everywhere)
         return None
     params = dict(order=row["order"], p_o=row["p_o"], p_d=row["p_d"],
@@ -191,7 +244,27 @@ def run_design_point(row, reps):
     return monte_carlo(blue, RED_FORCE, params, reps=reps, seed=int(row["seed"]))
 
 
-def run_farm(design, reps):
+def _run_row(args):
+    """Picklable worker for parallel farming: (index, row-dict, reps) -> record|None.
+    Each design point is self-seeded (row['seed']), so results are independent of
+    execution order and identical serial or parallel."""
+    _, row, reps = args
+    out = run_design_point(row, reps)
+    return None if out is None else {**row, **out}
+
+
+def run_farm(design, reps, jobs=1):
+    if jobs and jobs > 1:
+        import multiprocessing as mp
+        tasks = [(i, row.to_dict(), reps) for i, row in design.iterrows()]
+        recs = []
+        with mp.Pool(jobs) as pool:
+            for k, rec in enumerate(pool.imap_unordered(_run_row, tasks, chunksize=4)):
+                if rec is not None:
+                    recs.append(rec)
+                if (k + 1) % 100 == 0:
+                    print(f"  ... {k + 1}/{len(design)} design points ({jobs} workers)")
+        return pd.DataFrame(recs)
     recs = []
     for i, row in design.iterrows():
         out = run_design_point(row, reps)
@@ -245,12 +318,18 @@ def main():
                      help="Number of rotate-and-stack copies of the NOB base design.")
     ap.add_argument("--nob-coded-lo", type=float, default=-1.0)
     ap.add_argument("--nob-coded-hi", type=float, default=1.0)
+    ap.add_argument("--nob-already-scaled", action="store_true",
+                     help="NOB file already holds real-unit (pre-scaled) values (handoff Path A).")
+    ap.add_argument("--jobs", type=int, default=1,
+                     help="Parallel worker processes over design points (default 1). "
+                          "Results are identical to serial (each point is self-seeded).")
     args = ap.parse_args()
 
     nob_kwargs = None
     if args.nob_path is not None:
         nob_kwargs = dict(stack_rotations=args.nob_rotations,
-                           coded_range=(args.nob_coded_lo, args.nob_coded_hi))
+                           coded_range=(args.nob_coded_lo, args.nob_coded_hi),
+                           already_scaled=args.nob_already_scaled)
 
     design = build_design(args.process_points, MASTER_SEED,
                            nob_path=args.nob_path, nob_kwargs=nob_kwargs)
@@ -259,7 +338,7 @@ def main():
           f"({len(build_mixture_design())} mixture x {args.process_points} process x {len(ORDERS)} orders); "
           f"{args.reps} reps each -> {len(design) * args.reps:,} battles")
 
-    results = run_farm(design, args.reps)
+    results = run_farm(design, args.reps, jobs=args.jobs)
     results.to_csv(f"{args.out_prefix}_results.csv", index=False)
     print(f"Saved {args.out_prefix}_results.csv ({len(results)} rows)")
 

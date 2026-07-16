@@ -14,11 +14,12 @@
 PY      ?= python3
 REPS    ?= 500      # Monte Carlo battles per design point (pilot default)
 PTS     ?= 33       # space-filling process-design points (pilot default)
+JOBS    ?= 1        # parallel worker processes over design points
 PREFIX  ?= farm
 
 RESULTS := $(PREFIX)_results.csv
 
-.PHONY: all paper test demo farm figures clean deps
+.PHONY: all paper test demo farm figures gamma clean deps
 
 all: test farm figures ## full reproducible pilot pipeline
 
@@ -34,10 +35,13 @@ demo: ## readable validation + demonstration narrative
 	$(PY) validate_demo.py
 
 farm: ## design + simulate + metamodels -> $(PREFIX)_design.csv, $(PREFIX)_results.csv
-	$(PY) farm.py --reps $(REPS) --process-points $(PTS) --out-prefix $(PREFIX)
+	$(PY) farm.py --reps $(REPS) --process-points $(PTS) --out-prefix $(PREFIX) --jobs $(JOBS)
 
 figures: $(RESULTS) ## paper figures (fig1..fig5) + tables_summary.md
 	$(PY) analyze.py
+
+gamma: ## cost-convexity excursion (spec sec 5 / paper sec 5.5)
+	$(PY) gamma_excursion.py --reps $(REPS)
 
 $(RESULTS):
 	$(MAKE) farm
@@ -49,4 +53,4 @@ clean: ## remove generated run artifacts (keep source + design seeds)
 	rm -f $(PREFIX)_design.csv $(PREFIX)_results.csv \
 	      fig1_fusion_compounding.png fig2_partition_tree.png \
 	      fig3_mixture_ternary.png fig4_heterogeneity.png fig5_fusion_exchange.png \
-	      tables_summary.md
+	      tables_summary.md gamma_excursion.csv gamma_excursion.png
