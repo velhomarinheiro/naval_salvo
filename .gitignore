@@ -34,6 +34,8 @@ fig*_*.png
 tables_summary.md
 gamma_excursion.csv
 gamma_excursion.png
+cross_composition_results.csv
+cross_summary.md
 # NOAB design workbook / exports (provided locally, not versioned)
 NOAB_Mixed_Designs_v4.xlsx
 nob_design_raw.csv

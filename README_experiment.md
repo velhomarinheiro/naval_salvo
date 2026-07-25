@@ -39,6 +39,7 @@ generation. Every number is regenerable from fixed seeds.
 | `validate_demo.py` | Readable validation + demonstration narrative. |
 | `test_validation.py` | Automated section-10 regression suite (7 tests). |
 | `gamma_excursion.py` | Cost-convexity (γ) robustness excursion (spec sec 5 → paper sec 5.5). |
+| `cross_composition.py` | Cross-composition excursion: Blue AND Red force mixtures, full 10×10 cross, parity ±10%. |
 | `extract_noab_design.py` | Deterministic NOAB design extraction from the SEED Center workbook. |
 | `Makefile` | One-command reproduction targets. |
 | `requirements-lock.txt` | Pinned environment. |
@@ -114,6 +115,21 @@ generation. Every number is regenerable from fixed seeds.
   concentrated-quality design is still favoured, and it takes a markedly higher
   convexity penalty to tip the high-low mix toward many cheap hulls. Regenerate
   at paper scale before quoting in §5.5.
+
+- **Cross-composition (both sides designed)** — `make cross` (or
+  `python3 cross_composition.py --reps 5000 --jobs 4`). Releases the fixed-Red
+  assumption: Blue **and** Red are built from budget shares over L/M/H and every
+  mixture of the 10-point simplex set meets every other (10×10 cross), at
+  budget parity ±10% (ρ ∈ {0.9, 1.0, 1.1}), in a neutral fixed regime
+  (simultaneous, no fusion edge). Answers: dominant composition vs
+  rock-paper-scissors cycles among pure fleets, Blue's best response to each Red
+  mix, and budget-edge vs design-choice trade-off. Uses a **budget-capped exact
+  integer allocation** (`best_integer_fleet`): `farm.force_from_shares`'s
+  per-platform `round()` can overshoot the budget by up to +20% for mixed
+  fleets, which is harmless in the main farm (Red fixed, ρ continuous) but
+  would decide a head-to-head at parity by rounding windfall rather than by the
+  mixture. Effective spend/utilisation is recorded per cell. Outputs
+  `fig6_cross_matrix.png`, `fig7_budget_sensitivity.png`, `cross_summary.md`.
 
 ## NOAB process design (paper-scale)
 

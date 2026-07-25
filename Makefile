@@ -19,7 +19,7 @@ PREFIX  ?= farm
 
 RESULTS := $(PREFIX)_results.csv
 
-.PHONY: all paper paper-noab test demo farm figures gamma clean deps
+.PHONY: all paper paper-noab test demo farm figures gamma cross clean deps
 
 all: test farm figures ## full reproducible pilot pipeline
 
@@ -43,6 +43,9 @@ figures: $(RESULTS) ## paper figures (fig1..fig5) + tables_summary.md
 gamma: ## cost-convexity excursion (spec sec 5 / paper sec 5.5)
 	$(PY) gamma_excursion.py --reps $(REPS)
 
+cross: ## cross-composition excursion (Blue AND Red mixtures, parity +/-10%)
+	$(PY) cross_composition.py --reps 5000 --jobs $(JOBS)
+
 nob_design_raw.csv: ## extract the NOAB 128-pt design from the workbook
 	$(PY) extract_noab_design.py
 
@@ -63,4 +66,5 @@ clean: ## remove generated run artifacts (keep source + design seeds)
 	rm -f $(PREFIX)_design.csv $(PREFIX)_results.csv \
 	      fig1_fusion_compounding.png fig2_partition_tree.png \
 	      fig3_mixture_ternary.png fig4_heterogeneity.png fig5_fusion_exchange.png \
-	      tables_summary.md gamma_excursion.csv gamma_excursion.png
+	      tables_summary.md gamma_excursion.csv gamma_excursion.png \
+	      cross_composition_results.csv cross_summary.md
