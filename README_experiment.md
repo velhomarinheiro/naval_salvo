@@ -40,6 +40,7 @@ generation. Every number is regenerable from fixed seeds.
 | `test_validation.py` | Automated section-10 regression suite (7 tests). |
 | `gamma_excursion.py` | Cost-convexity (γ) robustness excursion (spec sec 5 → paper sec 5.5). |
 | `cross_composition.py` | Cross-composition excursion: Blue AND Red force mixtures, full 10×10 cross, parity ±10%. |
+| `alloc_robustness.py` | R6/fig3 robustness: round vs hard-capped fleet allocation (same design+seeds). |
 | `extract_noab_design.py` | Deterministic NOAB design extraction from the SEED Center workbook. |
 | `Makefile` | One-command reproduction targets. |
 | `requirements-lock.txt` | Pinned environment. |
@@ -115,6 +116,22 @@ generation. Every number is regenerable from fixed seeds.
   concentrated-quality design is still favoured, and it takes a markedly higher
   convexity penalty to tip the high-low mix toward many cheap hulls. Regenerate
   at paper scale before quoting in §5.5.
+
+- **Fleet-allocation robustness (R6/fig3)** — `python3 farm.py ... --fleet-alloc
+  capped` re-runs the farm with a hard-budget exact integer allocation
+  (`best_integer_fleet`) instead of per-platform `round()` (which lets mixed
+  fleets overspend by up to ~+20%); `python3 alloc_robustness.py <round.csv>
+  <capped.csv>` quantifies the difference (same design + seeds, allocation only).
+
+  **Paper-scale finding (10k reps, NOAB 128): the R6 sign FLIPS.** Under
+  `round()`, the heterogeneity value is positive (pooled median +0.009, 62% of
+  matched regimes positive; best parity design = centroid, P=0.54). Under the
+  hard cap it is ≈ zero-to-negative (median −0.004, 20% positive; best parity
+  design = pure L, P=0.38; centroid falls to 0.29). The mixtures that gained
+  most under `round()` are exactly the ones that overshoot the budget most —
+  the published R6/fig3 heterogeneity advantage is **largely a
+  budget-rounding artifact**, and the paper must either use the capped
+  allocation as primary or reframe R6 as allocation-sensitive.
 
 - **Cross-composition (both sides designed)** — `make cross` (or
   `python3 cross_composition.py --reps 5000 --jobs 4`). Releases the fixed-Red
