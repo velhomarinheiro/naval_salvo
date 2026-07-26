@@ -208,13 +208,48 @@ def build_process_design(n_points, seed, nob_path=None, nob_kwargs=None):
 def force_from_shares(budget, s_L, s_M, s_H, gamma=1.35):
     """Convert budget shares to integer hull counts, pricing platforms at cost
     convexity `gamma` (spec sec 5). gamma>1.35 penalises the concentrated H hull
-    harder (tilts the buy toward quantity); used by the gamma excursion."""
+    harder (tilts the buy toward quantity); used by the gamma excursion.
+
+    NOTE: per-platform round() lets mixed fleets overshoot the budget by up to
+    ~+20% (centroid at 35.2 rounds to a 42.3-cost fleet). Tolerable when Red is
+    fixed and rho is a continuous farmed factor, but it systematically gifts
+    budget to mixed designs; use --fleet-alloc capped (best_integer_fleet) for
+    the allocation-robustness check of R6/fig3."""
     spec = []
     for plat, sh in ((L_STRIKER, s_L), (M_BALANCED, s_M), (H_ESCORT, s_H)):
         n = int(round(budget * sh / unit_cost(plat, gamma=gamma)))
         if n > 0:
             spec.append((plat, n))
     return spec
+
+
+def best_integer_fleet(budget, shares, gamma=1.35):
+    """Budget-CAPPED integer fleet closest to the target mixture shares.
+
+    Enumerates every (n_L, n_M, n_H) with cost <= budget (HARD cap, never
+    overspend — the fleet space is tiny) and picks the one minimising the L2
+    distance between realised value shares (spend_k / budget) and the target
+    shares; unspent budget counts as share shortfall, so utilisation is
+    maximised subject to mix fidelity; ties break toward higher spend.
+    Returns (spec, spend). See cross_composition.py for the full rationale."""
+    plats = (L_STRIKER, M_BALANCED, H_ESCORT)
+    costs = [unit_cost(p, gamma=gamma) for p in plats]
+    eps = 1e-9 * budget  # float guard: budget built as k*c must admit k hulls
+    caps = [int((budget + eps) // c) if s > 0 else 0 for c, s in zip(costs, shares)]
+    best, best_key = None, None
+    for counts in itertools.product(*(range(c + 1) for c in caps)):
+        spend = sum(n * c for n, c in zip(counts, costs))
+        if spend > budget + eps or spend == 0:
+            continue
+        err = sum((n * c / budget - s) ** 2
+                  for n, c, s in zip(counts, costs, shares))
+        key = (err, -spend)
+        if best_key is None or key < best_key:
+            best, best_key = counts, key
+    if best is None:
+        return [], 0.0
+    spec = [(p, n) for p, n in zip(plats, best) if n > 0]
+    return spec, float(sum(n * c for n, c in zip(best, costs)))
 
 
 def build_design(n_process, seed, nob_path=None, nob_kwargs=None):
@@ -230,33 +265,40 @@ def build_design(n_process, seed, nob_path=None, nob_kwargs=None):
     return df
 
 
-def run_design_point(row, reps):
+def run_design_point(row, reps, alloc="round"):
     # Budget stays anchored to the gamma=1.35 Red reference value; gamma only
     # reprices Blue's platforms (spec sec 5), isolating the high-low mix effect.
     budget = row["rho"] * RED_VALUE
     gamma = float(row.get("gamma", 1.35))
-    blue = force_from_shares(budget, row["s_L"], row["s_M"], row["s_H"], gamma=gamma)
+    extra = {}
+    if alloc == "capped":
+        blue, spend = best_integer_fleet(budget, (row["s_L"], row["s_M"], row["s_H"]),
+                                         gamma=gamma)
+        extra = {"blue_spend": spend, "blue_util": spend / budget}
+    else:
+        blue = force_from_shares(budget, row["s_L"], row["s_M"], row["s_H"], gamma=gamma)
     if not blue:  # degenerate (tiny budget share rounding to zero everywhere)
         return None
     params = dict(order=row["order"], p_o=row["p_o"], p_d=row["p_d"],
                   sigma_b=row["sigma_b"], sigma_r=row["sigma_r"],
                   tau_b=row["tau"], tau_r=row["tau"], sd=row["sd"], **FIXED)
-    return monte_carlo(blue, RED_FORCE, params, reps=reps, seed=int(row["seed"]))
+    out = monte_carlo(blue, RED_FORCE, params, reps=reps, seed=int(row["seed"]))
+    return {**out, **extra}
 
 
 def _run_row(args):
-    """Picklable worker for parallel farming: (index, row-dict, reps) -> record|None.
-    Each design point is self-seeded (row['seed']), so results are independent of
-    execution order and identical serial or parallel."""
-    _, row, reps = args
-    out = run_design_point(row, reps)
+    """Picklable worker for parallel farming: (index, row-dict, reps, alloc) ->
+    record|None. Each design point is self-seeded (row['seed']), so results are
+    independent of execution order and identical serial or parallel."""
+    _, row, reps, alloc = args
+    out = run_design_point(row, reps, alloc)
     return None if out is None else {**row, **out}
 
 
-def run_farm(design, reps, jobs=1):
+def run_farm(design, reps, jobs=1, alloc="round"):
     if jobs and jobs > 1:
         import multiprocessing as mp
-        tasks = [(i, row.to_dict(), reps) for i, row in design.iterrows()]
+        tasks = [(i, row.to_dict(), reps, alloc) for i, row in design.iterrows()]
         recs = []
         with mp.Pool(jobs) as pool:
             for k, rec in enumerate(pool.imap_unordered(_run_row, tasks, chunksize=4)):
@@ -267,7 +309,7 @@ def run_farm(design, reps, jobs=1):
         return pd.DataFrame(recs)
     recs = []
     for i, row in design.iterrows():
-        out = run_design_point(row, reps)
+        out = run_design_point(row, reps, alloc)
         if out is None:
             continue
         recs.append({**row.to_dict(), **out})
@@ -323,6 +365,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=1,
                      help="Parallel worker processes over design points (default 1). "
                           "Results are identical to serial (each point is self-seeded).")
+    ap.add_argument("--fleet-alloc", choices=["round", "capped"], default="round",
+                     help="Blue fleet construction: 'round' (spec default, may "
+                          "overshoot budget ~+20%% on mixes) or 'capped' "
+                          "(best_integer_fleet, hard budget cap; allocation-"
+                          "robustness check for R6/fig3).")
     args = ap.parse_args()
 
     nob_kwargs = None
@@ -338,7 +385,7 @@ def main():
           f"({len(build_mixture_design())} mixture x {args.process_points} process x {len(ORDERS)} orders); "
           f"{args.reps} reps each -> {len(design) * args.reps:,} battles")
 
-    results = run_farm(design, args.reps, jobs=args.jobs)
+    results = run_farm(design, args.reps, jobs=args.jobs, alloc=args.fleet_alloc)
     results.to_csv(f"{args.out_prefix}_results.csv", index=False)
     print(f"Saved {args.out_prefix}_results.csv ({len(results)} rows)")
 

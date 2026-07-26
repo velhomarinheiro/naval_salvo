@@ -36,6 +36,9 @@ gamma_excursion.csv
 gamma_excursion.png
 cross_composition_results.csv
 cross_summary.md
+farm_capped_design.csv
+farm_capped_results.csv
+alloc_robustness_summary.md
 # NOAB design workbook / exports (provided locally, not versioned)
 NOAB_Mixed_Designs_v4.xlsx
 nob_design_raw.csv

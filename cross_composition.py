@@ -35,8 +35,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from salvo_mds import monte_carlo, unit_cost, L_STRIKER, M_BALANCED, H_ESCORT, RED_STD
-from farm import build_mixture_design
+from salvo_mds import monte_carlo, unit_cost, RED_STD
+from farm import build_mixture_design, best_integer_fleet
 
 MASTER_SEED = 20260731
 RED_VALUE = 5 * unit_cost(RED_STD)   # 35.2 — the budget-ratio base (spec sec 6)
@@ -57,39 +57,10 @@ def compositions():
     return [(MIX_LABELS[i], tuple(mix.iloc[i])) for i in range(len(mix))]
 
 
-def best_integer_fleet(budget, shares, gamma=1.35):
-    """Budget-CAPPED integer fleet closest to the target mixture shares.
-
-    farm.force_from_shares uses per-platform round(), which lets mixed fleets
-    overshoot the budget by up to ~20% (e.g. the centroid at 35.2 rounds to a
-    42.3-cost fleet) — harmless when Red is fixed and rho varies continuously,
-    but fatal in a head-to-head composition comparison at parity: the rounding
-    windfall, not the mixture, would decide the outcome.
-
-    Here the integer fleet space is tiny, so we solve the allocation exactly:
-    enumerate every (n_L, n_M, n_H) with cost <= budget (HARD cap, never
-    overspend) and pick the one minimising the L2 distance between realised
-    value shares (spend_k / budget) and the target shares. Unspent budget thus
-    counts as share shortfall, so utilisation is maximised subject to mix
-    fidelity; ties break toward higher spend. Returns (spec, spend)."""
-    plats = (L_STRIKER, M_BALANCED, H_ESCORT)
-    costs = [unit_cost(p, gamma=gamma) for p in plats]
-    eps = 1e-9 * budget  # float guard: budget built as k*c must admit k hulls
-    caps = [int((budget + eps) // c) if s > 0 else 0 for c, s in zip(costs, shares)]
-    best, best_key = None, None
-    for counts in itertools.product(*(range(c + 1) for c in caps)):
-        spend = sum(n * c for n, c in zip(counts, costs))
-        if spend > budget + eps or spend == 0:
-            continue
-        err = sum((n * c / budget - s) ** 2
-                  for n, c, s in zip(counts, costs, shares))
-        key = (err, -spend)
-        if best_key is None or key < best_key:
-            best, best_key = counts, key
-    if best is None:
-        return [], 0.0
-    spec = [(p, n) for p, n in zip(plats, best) if n > 0]
-    return spec, float(sum(n * c for n, c in zip(best, costs)))
+# best_integer_fleet lives in farm.py (canonical, shared with the farm's
+# --fleet-alloc capped robustness mode); rationale in its docstring: per-platform
+# round() lets mixed fleets overshoot the budget by up to ~+20%, which would
+# decide a head-to-head at parity by rounding windfall rather than mixture.
 
 
 def _run_cell(args):
