@@ -39,6 +39,8 @@ cross_summary.md
 cross[0-9]*_*.csv
 cross[0-9]*_*.png
 cross[0-9]*_*.md
+fig_scale_curve.png
+scale_curve_summary.md
 farm_capped_design.csv
 farm_capped_results.csv
 alloc_robustness_summary.md
