@@ -39,7 +39,8 @@ from salvo_mds import monte_carlo, unit_cost, RED_STD
 from farm import build_mixture_design, best_integer_fleet
 
 MASTER_SEED = 20260731
-RED_VALUE = 5 * unit_cost(RED_STD)   # 35.2 — the budget-ratio base (spec sec 6)
+M_COST = unit_cost(RED_STD)          # 7.03 — the balanced frigate (Red standard)
+RED_VALUE = 5 * M_COST               # 35.2 — spec sec 6 base (--budget-m 5)
 RHOS = [0.9, 1.0, 1.1]               # parity +/- 10%
 
 # Neutral process centre (documented fixed settings for this excursion):
@@ -64,9 +65,9 @@ def compositions():
 
 
 def _run_cell(args):
-    (bi, blab, bshares), (ri, rlab, rshares), rho, reps, seed = args
-    blue, bspend = best_integer_fleet(rho * RED_VALUE, bshares)
-    red, rspend = best_integer_fleet(RED_VALUE, rshares)
+    (bi, blab, bshares), (ri, rlab, rshares), rho, reps, seed, ref_budget = args
+    blue, bspend = best_integer_fleet(rho * ref_budget, bshares)
+    red, rspend = best_integer_fleet(ref_budget, rshares)
     if not blue or not red:
         return None
     out = monte_carlo(blue, red, NEUTRAL, reps=reps, seed=seed)
@@ -76,11 +77,11 @@ def _run_cell(args):
             "s_L_r": rshares[0], "s_M_r": rshares[1], "s_H_r": rshares[2],
             "blue_hulls": sum(n for _, n in blue), "red_hulls": sum(n for _, n in red),
             "blue_spend": bspend, "red_spend": rspend,
-            "blue_util": bspend / (rho * RED_VALUE), "red_util": rspend / RED_VALUE,
+            "blue_util": bspend / (rho * ref_budget), "red_util": rspend / ref_budget,
             "seed": seed, **out}
 
 
-def run(reps, jobs):
+def run(reps, jobs, ref_budget):
     comps = compositions()
     ss = np.random.SeedSequence(MASTER_SEED)
     tasks = []
@@ -90,10 +91,11 @@ def run(reps, jobs):
         for bi, (blab, bsh) in enumerate(comps):
             for ri, (rlab, rsh) in enumerate(comps):
                 tasks.append(((bi, blab, bsh), (ri, rlab, rsh), rho, reps,
-                              int(seeds[k].generate_state(1)[0])))
+                              int(seeds[k].generate_state(1)[0]), ref_budget))
                 k += 1
     print(f"cross design: {len(comps)}x{len(comps)} compositions x {len(RHOS)} budget "
-          f"ratios = {len(tasks)} cells x {reps} reps = {len(tasks)*reps:,} battles")
+          f"ratios = {len(tasks)} cells x {reps} reps = {len(tasks)*reps:,} battles; "
+          f"reference budget = {ref_budget:.1f} ({ref_budget/M_COST:.0f} x M)")
     if jobs > 1:
         import multiprocessing as mp
         with mp.Pool(jobs) as pool:
@@ -105,21 +107,21 @@ def run(reps, jobs):
 
 
 # ----------------------------------------------------------------------
-def fleet_table(notes):
+def fleet_table(notes, ref_budget):
     """Realised integer fleets per composition and budget level (transparency:
     shows the quantization the hard budget cap imposes)."""
     for rho in RHOS:
         rows = []
         for lab, sh in compositions():
-            spec, spend = best_integer_fleet(rho * RED_VALUE, sh)
+            spec, spend = best_integer_fleet(rho * ref_budget, sh)
             fleet = "+".join(f"{n}{p.name}" for p, n in spec) or "-"
-            rows.append(f"{lab}:{fleet}({spend/(rho*RED_VALUE):.0%})")
+            rows.append(f"{lab}:{fleet}({spend/(rho*ref_budget):.0%})")
         notes.append(f"FLEETS rho={rho}: " + "  ".join(rows))
 
 
-def analyse(df):
+def analyse(df, ref_budget):
     notes = []
-    fleet_table(notes)
+    fleet_table(notes, ref_budget)
     notes.append(f"BUDGET UTILISATION under the hard cap: mean "
                  f"{df.blue_util.mean():.0%}, min {df.blue_util.min():.0%} "
                  f"(farm.force_from_shares round() would overshoot up to +20% — "
@@ -180,7 +182,7 @@ def analyse(df):
 
 
 # ----------------------------------------------------------------------
-def fig_cross_matrix(P, F, out="fig6_cross_matrix.png"):
+def fig_cross_matrix(P, F, out="fig6_cross_matrix.png", budget_label=""):
     """10x10 cross matrix. Color = log-FER (diverging, symmetric, mirror=0);
     cell text = P(Blue victory). Best Blue response per Red column outlined."""
     M = F.to_numpy()
@@ -190,7 +192,7 @@ def fig_cross_matrix(P, F, out="fig6_cross_matrix.png"):
     ax.set_xticks(range(len(MIX_LABELS))); ax.set_xticklabels(MIX_LABELS, fontsize=8)
     ax.set_yticks(range(len(MIX_LABELS))); ax.set_yticklabels(MIX_LABELS, fontsize=8)
     ax.set_xlabel("Red composition"); ax.set_ylabel("Blue composition")
-    ax.set_title("Cross-composition outcome at budget parity\n"
+    ax.set_title(f"Cross-composition outcome at budget parity{budget_label}\n"
                  "colour: log-FER (blue = Blue-favourable) · text: P(Blue victory)")
     Pm = P.to_numpy()
     best_rows = np.nanargmax(Pm, axis=0)
@@ -209,7 +211,7 @@ def fig_cross_matrix(P, F, out="fig6_cross_matrix.png"):
     fig.tight_layout(); fig.savefig(out, dpi=150)
 
 
-def fig_budget_sensitivity(df, out="fig7_budget_sensitivity.png"):
+def fig_budget_sensitivity(df, out="fig7_budget_sensitivity.png", budget_label=""):
     """Mean P(Blue victory) per Blue composition, one line per budget ratio.
     Shows how much a +/-10% budget edge moves each design."""
     fig, ax = plt.subplots(figsize=(6.0, 3.4))
@@ -223,7 +225,7 @@ def fig_budget_sensitivity(df, out="fig7_budget_sensitivity.png"):
     ax.set_xticks(range(len(order))); ax.set_xticklabels(order, fontsize=8)
     ax.set_xlabel("Blue composition (sorted by parity performance)")
     ax.set_ylabel("Mean P(Blue victory)\nacross all Red compositions")
-    ax.set_title("Budget edge (±10%) vs force-design choice")
+    ax.set_title(f"Budget edge (±10%) vs force-design choice{budget_label}")
     ax.legend(fontsize=8, title="Blue/Red budget")
     ax.grid(alpha=0.3); fig.tight_layout(); fig.savefig(out, dpi=150)
 
@@ -232,24 +234,50 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=5000)
     ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--budget-m", type=float, default=5.0,
+                     help="Reference budget in M-hull equivalents (default 5 = "
+                          "the spec sec-6 base, 35.2; use 10 for the enlarged "
+                          "70.3 budget that reduces integer-fleet quantization).")
+    ap.add_argument("--out-prefix", default=None,
+                     help="Prefix for output files. Default: legacy names "
+                          "(fig6_/fig7_/cross_*) when --budget-m 5, else "
+                          "'crossN' derived from --budget-m.")
     args = ap.parse_args()
 
-    df = run(args.reps, args.jobs)
-    df.to_csv("cross_composition_results.csv", index=False)
-    print(f"saved cross_composition_results.csv ({len(df)} cells)")
+    ref_budget = args.budget_m * M_COST
+    if args.out_prefix is None:
+        legacy = abs(args.budget_m - 5.0) < 1e-9
+        names = (dict(csv="cross_composition_results.csv",
+                      matrix="fig6_cross_matrix.png",
+                      budget="fig7_budget_sensitivity.png",
+                      summary="cross_summary.md") if legacy else
+                 dict(csv=f"cross{args.budget_m:g}_results.csv",
+                      matrix=f"cross{args.budget_m:g}_matrix.png",
+                      budget=f"cross{args.budget_m:g}_budget_sensitivity.png",
+                      summary=f"cross{args.budget_m:g}_summary.md"))
+    else:
+        p = args.out_prefix
+        names = dict(csv=f"{p}_results.csv", matrix=f"{p}_matrix.png",
+                     budget=f"{p}_budget_sensitivity.png", summary=f"{p}_summary.md")
+    blabel = f" (budget = {args.budget_m:g}×M)"
 
-    P, F, notes = analyse(df)
-    fig_cross_matrix(P, F)
-    fig_budget_sensitivity(df)
-    with open("cross_summary.md", "w") as f:
+    df = run(args.reps, args.jobs, ref_budget)
+    df.to_csv(names["csv"], index=False)
+    print(f"saved {names['csv']} ({len(df)} cells)")
+
+    P, F, notes = analyse(df, ref_budget)
+    fig_cross_matrix(P, F, out=names["matrix"], budget_label=blabel)
+    fig_budget_sensitivity(df, out=names["budget"], budget_label=blabel)
+    with open(names["summary"], "w") as f:
         f.write(f"# Cross-composition excursion ({args.reps} reps/cell, "
-                f"parity ±10%)\n\nFixed neutral regime: {NEUTRAL}\n\n")
+                f"parity ±10%, reference budget {args.budget_m:g}×M = "
+                f"{ref_budget:.1f})\n\nFixed neutral regime: {NEUTRAL}\n\n")
         for n in notes:
             f.write("- " + n + "\n\n")
     print()
     for n in notes:
         print("- " + n)
-    print("\nWrote fig6_cross_matrix.png + fig7_budget_sensitivity.png + cross_summary.md")
+    print(f"\nWrote {names['matrix']} + {names['budget']} + {names['summary']}")
 
 
 if __name__ == "__main__":
