@@ -364,3 +364,53 @@ artigo — a dependência de escala do trade-off quantidade–qualidade (H viáv
 frotas pequenas, dominado em frotas médias) e a transição "design importa ≈
 orçamento" → "orçamento importa mais" são as duas curvas que só a resolução
 per-unit com alocação inteira honesta consegue exibir.
+
+---
+
+## 14. Curva de escala completa — três pontos (5×M / 10×M / 20×M)
+
+Terceiro ponto executado com orçamento **20×M ≈ 140,7** (frotas puras em
+paridade: 39L / 20M / 8H; utilização média 97%, mín. 90%; checks: diagonal-
+espelho 0,042, antissimetria 0,083 — os mais estreitos dos três pontos, como
+esperado com frotas maiores). Bases: `cross20_results.csv`; consolidação:
+`scale_curve.py` → `fig_scale_curve.png` + `scale_curve_summary.md`.
+Reprodução: `python3 cross_composition.py --reps 5000 --jobs 4 --budget-m 20 &&
+python3 scale_curve.py`.
+
+| Métrica (paridade) | 5×M | 10×M | 20×M | Tendência |
+|---|---|---|---|---|
+| log-FER **L vs M** | −0,61 | +0,15 | +0,54 | M vence → **L vence** (cruzamento ≈ 10×M) |
+| log-FER **L vs H** | +0,17 | +1,61 | +2,36 | colapso do H aprofunda monotonicamente |
+| log-FER **M vs H** | +0,78 | +1,90 | +2,45 | idem |
+| Amplitude da escolha de design | 0,22 | 0,15 | 0,11 | design importa cada vez menos |
+| Efeito de ±10% de orçamento | +0,20 | +0,21 | +0,16 | ≈ estável (comprime a 20× pelos empates) |
+| Melhor Azul / Vermelho mais frágil | M / M+ | M / H | **L / H** | quantidade assume o topo |
+| Utilização (média / mín.) | 89% / 55% | 96% / 83% | 97% / 90% | quantização → desprezível |
+
+**Os três resultados de escala do artigo:**
+
+1. **O colapso da frota pesada é monotônico e acelera.** L-vs-H vai de +0,17
+   (quase empate, 9L vs 2H) a +2,36 (massacre, 39L vs 8H). Mecanismo:
+   o volume ofensivo cresce com a escala, e a defesa agrupada de poucos cascos
+   satura — cada casco H adicional acrescenta defesa linearmente, mas o
+   adversário acrescenta mísseis na mesma proporção; o que muda é que a frota
+   numerosa dilui os vazadores entre mais alvos enquanto o H concentra o dano
+   recebido. Capitais são viáveis apenas em engajamentos pequenos.
+2. **Existe um cruzamento quantidade–equilíbrio (~10×M).** M vence L em frotas
+   pequenas (−0,61), empata em médias (+0,15) e perde em grandes (+0,54) — o
+   ponto ótimo do high–low mix desloca-se para a ponta *low* conforme o
+   engajamento cresce.
+3. **Design encolhe, orçamento persiste.** A amplitude da escolha de composição
+   cai pela metade (0,22 → 0,11) enquanto o efeito de ±10% de orçamento
+   permanece na mesma ordem (+0,20 → +0,16): em frotas grandes, massa
+   orçamentária domina a decisão de mistura — convergência ao comportamento
+   lanchesteriano/contínuo, com a ressalva de que a 20×M o regime neutro
+   torna-se altamente indeciso (P(vitória) comprime; o log-FER segue
+   informativo e é a métrica recomendada nessa escala).
+
+**Advertência de leitura (empates em escala):** no regime neutro, frotas
+maiores terminam mais frequentemente sem decisão (atrito mútuo acima de θ com
+magazines exauridos) — a P(vitória) absoluta cai nos três pontos por essa via.
+As comparações desta seção usam log-FER (imune a esse deslocamento) ou
+diferenças de P(vitória) dentro da mesma escala, nunca níveis absolutos entre
+escalas.
