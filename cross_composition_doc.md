@@ -309,3 +309,58 @@ da plataforma balanceada em paridade; (iii) dispersão como melhor resposta ao
 oponente balanceado; (iv) equivalência aproximada entre ±10% de orçamento e a
 amplitude total da escolha de composição; (v) não-monotonicidade do valor do
 orçamento por granularidade de aquisição.
+
+---
+
+## 13. Cenário ampliado — orçamento de referência 10×M (base primária recomendada)
+
+Para reduzir a quantização inteira que domina o comparativo no orçamento
+pequeno (§10.2), o experimento foi re-executado com **orçamento de referência =
+10 × custo da fragata M ≈ 70,3** (o dobro da base da spec), mantendo a função de
+custo (γ=1,35), o regime neutro, ρ ∈ {0,9; 1,0; 1,1}, 5.000 reps/célula e o
+mesmo esquema de sementes. **Base:** `cross10_results.csv` (mesmas 44 colunas);
+figuras `cross10_matrix.png`, `cross10_budget_sensitivity.png`; sumário
+`cross10_summary.md`. Reprodução: `python3 cross_composition.py --reps 5000
+--jobs 4 --budget-m 10`.
+
+**Frotas em paridade:** 19L / 10M / 4H puras; utilização média sobe de 89% para
+**96%** (mín. 83% vs 55%) — o ±10% de orçamento agora move as frotas de forma
+quase contínua (L: 17→19→21; M: 9→10→11). Checks: diagonal-espelho |log-FER|
+máx 0,072; antissimetria 0,144.
+
+**Resultados no orçamento ampliado (paridade):**
+
+| Métrica | 5×M (35,2) | 10×M (70,3) |
+|---|---|---|
+| 3×3 puro (log-FER) | M>L>H (M vs L +0,57; M vs H +0,78) | **L≈M ≫ H** (L vs M +0,15; M vs H +1,90; L vs H +1,61) |
+| Ranking Azul (topo) | M=0,26; L=0,24 | M=0,16; L=0,16; … C último (0,01) |
+| Vermelho mais duro / mais frágil | M (0,03) / M+ (0,34) | L (0,02) / **H (0,19)** |
+| Efeito ±10% orçamento vs amplitude do design | 0,20 vs 0,22 (≈ empate) | **0,21 vs 0,15 (orçamento vence)** |
+
+**Novos achados que a escala revela:**
+
+1. **A frota pesada colapsa em escala (saturação).** Com 4H contra 19L/10M, o
+   H puro passa a ser o Vermelho mais frágil da matriz (P(vitória de Azul)
+   contra ele = 0,19; L vs H: P=0,51, log-FER +1,61) e um dos piores Azuis. No
+   orçamento pequeno, o H era competitivo porque as salvas adversárias eram
+   pequenas; ao dobrar a escala, o volume ofensivo satura a defesa agrupada dos
+   poucos cascos — o resultado clássico do modelo de salvas emergindo da
+   resolução per-unit. Poucos pontos de mira não escalam.
+2. **Quantidade e equilíbrio convergem no topo.** L e M empatam como melhores
+   composições (log-FER L vs M ≈ +0,15, quase espelho); a hierarquia M>L do
+   orçamento pequeno era parcialmente efeito de granularidade.
+3. **Heterogeneidade continua sem prêmio em paridade neutra:** o centroide é a
+   pior composição Azul (0,01) — consistente com a checagem de robustez do R6
+   (alocação capped) do experimento principal.
+4. **Em escala, orçamento pesa mais que design:** o efeito de ±10% de orçamento
+   (+0,21) supera a amplitude total da escolha de composição (0,15) — inversão
+   do resultado do orçamento pequeno, onde design ≈ orçamento. A granularidade
+   ainda aparece pontualmente: para o H puro, +10% em ρ=1,1 não compra nenhum
+   casco extra (segue 4H, utilização cai 99%→90%) e o ganho é nulo — o "degrau"
+   visível em `cross10_budget_sensitivity.png`.
+
+**Nota de redação:** o contraste 5×M vs 10×M é, em si, um resultado central do
+artigo — a dependência de escala do trade-off quantidade–qualidade (H viável em
+frotas pequenas, dominado em frotas médias) e a transição "design importa ≈
+orçamento" → "orçamento importa mais" são as duas curvas que só a resolução
+per-unit com alocação inteira honesta consegue exibir.

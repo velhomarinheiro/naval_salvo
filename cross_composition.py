@@ -172,12 +172,15 @@ def analyse(df, ref_budget):
     # --- budget sensitivity: +/-10% vs composition choice ---
     by_rho = df.groupby("rho").p_victory.mean()
     spread_mix = row_mean.iloc[0] - row_mean.iloc[-1]
+    budget_eff = by_rho[1.1] - by_rho[0.9]
+    verdict = ("the composition choice outweighs a 10% budget edge"
+               if spread_mix > budget_eff else
+               "a 10% budget edge outweighs the composition choice")
     notes.append(f"BUDGET vs DESIGN: mean P(vict) rises {by_rho[0.9]:.2f} -> "
                  f"{by_rho[1.0]:.2f} -> {by_rho[1.1]:.2f} across rho 0.9->1.1 "
-                 f"(+/-10% budget ~ {by_rho[1.1]-by_rho[0.9]:+.2f}), while the "
-                 f"composition choice spans {spread_mix:.2f} at fixed parity — "
-                 f"{'design outweighs' if spread_mix > (by_rho[1.1]-by_rho[0.9]) else 'budget outweighs'} "
-                 f"a 10% budget edge in this regime.")
+                 f"(+/-10% budget ~ {budget_eff:+.2f}), while the composition "
+                 f"choice spans {spread_mix:.2f} at fixed parity — {verdict} "
+                 f"in this regime.")
     return P, F, notes
 
 
