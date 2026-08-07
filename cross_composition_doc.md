@@ -408,6 +408,70 @@ python3 scale_curve.py`.
    torna-se altamente indeciso (P(vitória) comprime; o log-FER segue
    informativo e é a métrica recomendada nessa escala).
 
+---
+
+## 15. Desenho de PARIDADE ESTRITA (ρ = 1 sempre) nas três escalas
+
+**Motivação.** Nas §5/§13/§14 o orçamento variava ±10%, o que mistura dois
+efeitos (composição e orçamento). Aqui os dois lados têm **sempre o mesmo
+orçamento**, isolando a composição como única causa do resultado. Como a
+dimensão ρ desaparece, as réplicas foram concentradas: **20.000 batalhas por
+confronto** (contra 5.000 antes), 100 confrontos por escala, 3 escalas =
+**6.000.000 de batalhas**.
+
+**Bases:** `parity5_results.csv`, `parity10_results.csv`, `parity20_results.csv`
+(agora com `logfer_se`, `p_victory_se` e `reps` por célula). Consolidação:
+`parity_scale.py` → `parity_scale_matrix.png`, `parity_scale_curve.png`,
+`parity_scale_summary.md`. Reprodução:
+`python3 cross_composition.py --reps 20000 --jobs 4 --budget-m {5,10,20}
+--rhos 1.0 --out-prefix parity{5,10,20} && python3 parity_scale.py`.
+
+**Precisão e verificação.** IC95 mediano por célula: **±0,033 (5×M), ±0,025
+(10×M), ±0,016 (20×M)**. Diagonal-espelho máx. 0,031 / 0,029 / 0,022 e
+antissimetria máx. 0,062 / 0,058 / 0,053 — todas dentro do IC de uma célula, ou
+seja, o motor é simétrico dentro da precisão de Monte Carlo. **96–97% dos 90
+pares não-espelho são decididos a 95%** (as células indecididas estão marcadas
+com um ponto na figura das matrizes).
+
+### 3×3 puro, com intervalos (log-FER ± IC95)
+
+| Confronto | 5×M | 10×M | 20×M |
+|---|---|---|---|
+| **L vs M** | **−0,54 ± 0,03** | **+0,17 ± 0,02** | **+0,54 ± 0,01** |
+| **L vs H** | +0,27 ± 0,05 | +1,61 ± 0,03 | +2,35 ± 0,02 |
+| **M vs H** | +0,79 ± 0,04 | +1,88 ± 0,04 | +2,49 ± 0,03 |
+| Pura mais forte | **M** | **L** | **L** |
+
+### Resultados
+
+1. **O cruzamento quantidade–equilíbrio agora é medido, não estimado.** L-vs-M
+   passa de −0,54 ± 0,03 (M vence) para +0,17 ± 0,02 (L vence) entre 5×M e
+   10×M — ambos a muitos desvios-padrão de zero. O ponto de inversão fica
+   **entre 5×M e 10×M**, e a vantagem de L segue crescendo (+0,54 em 20×M).
+2. **O colapso do H é monotônico e maciço:** L-vs-H sobe +0,27 → +1,61 → +2,35;
+   M-vs-H sobe +0,79 → +1,88 → +2,49. Em 10×M e 20×M o H puro é o Vermelho mais
+   frágil da matriz (P(vitória de Azul) contra ele = 0,192 e 0,148, contra
+   0,021 e 0,001 do L). Poucos cascos não escalam contra salvas grandes.
+3. **Confronto direto ≠ desempenho médio (não-transitividade parcial).** Em
+   10×M, **L vence M no confronto direto** (+0,17 ± 0,02), mas **M tem média
+   maior contra o campo inteiro** (0,163 vs 0,153). São perguntas diferentes:
+   "que frota bate aquela frota?" e "que frota se sai melhor contra um
+   adversário desconhecido?" — e a resposta muda. Em 20×M as duas convergem
+   para L (0,114 vs 0,086). Vale explicitar no artigo qual das duas leituras
+   se está reportando.
+4. **A composição decide cada vez menos com a escala** (painel B da curva,
+   ambas as medidas indexadas ao valor de 5×M): a amplitude da média de
+   P(vitória) cai para 0,69 e 0,51 do valor inicial, e o |log-FER| médio sobre
+   os 90 pares cai para 0,66 e 0,68. As duas medidas concordam na direção; a
+   segunda estabiliza entre 10×M e 20×M enquanto a primeira segue caindo —
+   coerente com o adensamento de empates (ver advertência abaixo), que comprime
+   P(vitória) mas não a razão de troca.
+5. **A melhor resposta é quase sempre L ou M, nunca H nem misturas.** Em 20×M,
+   L é a melhor resposta contra 6 das 10 composições e M contra as outras 4;
+   nenhuma composição mista é a melhor resposta contra nada em nenhuma escala.
+   No regime neutro e em paridade, a heterogeneidade não tem prêmio — o
+   centroide fica em penúltimo (10×M) e no meio-baixo da tabela (20×M).
+
 **Advertência de leitura (empates em escala):** no regime neutro, frotas
 maiores terminam mais frequentemente sem decisão (atrito mútuo acima de θ com
 magazines exauridos) — a P(vitória) absoluta cai nos três pontos por essa via.

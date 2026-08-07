@@ -144,15 +144,29 @@ def main():
 
     ax = axes[1]
     off = ~np.eye(len(MIX_LABELS), dtype=bool)
-    spread = [np.abs(data[s][1].to_numpy()[off]).mean() for s in xs]
-    pspan = [data[s][3].mean(axis=1).max() - data[s][3].mean(axis=1).min() for s in xs]
-    ax.plot(xs, spread, marker="o", lw=2, color="#7d3c98", label="mean |log-FER| over pairings")
-    ax.plot(xs, pspan, marker="s", lw=2, color="#b9770e", label="span of mean P(victory)")
+    spread = np.array([np.abs(data[s][1].to_numpy()[off]).mean() for s in xs])
+    pspan = np.array([data[s][3].mean(axis=1).max() - data[s][3].mean(axis=1).min()
+                      for s in xs])
+    # The two measures live in different units (log-FER vs probability), so they
+    # are indexed to their 5xM value: one dimensionless axis, honest comparison
+    # of TRENDS (never two y-scales on one plot).
+    ax.plot(xs, spread / spread[0], marker="o", lw=2, color="#7d3c98",
+            label="mean |log-FER| over pairings")
+    ax.plot(xs, pspan / pspan[0], marker="s", lw=2, color="#b9770e",
+            label="span of mean P(victory)")
+    for xi, v in zip(xs, spread / spread[0]):
+        ax.annotate(f"{v:.2f}", (xi, v), textcoords="offset points", xytext=(0, 7),
+                    ha="center", fontsize=7, color="#7d3c98")
+    for xi, v in zip(xs, pspan / pspan[0]):
+        ax.annotate(f"{v:.2f}", (xi, v), textcoords="offset points", xytext=(0, -12),
+                    ha="center", fontsize=7, color="#b9770e")
+    ax.axhline(1.0, color="gray", lw=0.8, ls=":")
     ax.set_xticks(xs); ax.set_xticklabels([f"{s}×M" for s in xs])
+    ax.set_ylim(0, 1.25)
     ax.set_xlabel("Reference budget (engagement scale)")
-    ax.set_ylabel("Magnitude")
-    ax.set_title("How much does composition decide?\n(two views, same question)", fontsize=9)
-    ax.legend(fontsize=8); ax.grid(alpha=0.3)
+    ax.set_ylabel("Indexed to the 5×M value (= 1.0)")
+    ax.set_title("How much does composition decide?\n(two measures, indexed — both fall)", fontsize=9)
+    ax.legend(fontsize=8, loc="lower left"); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig("parity_scale_curve.png")
 
     with open("parity_scale_summary.md", "w", encoding="utf-8") as f:
