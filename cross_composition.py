@@ -41,7 +41,7 @@ from farm import build_mixture_design, best_integer_fleet
 MASTER_SEED = 20260731
 M_COST = unit_cost(RED_STD)          # 7.03 — the balanced frigate (Red standard)
 RED_VALUE = 5 * M_COST               # 35.2 — spec sec 6 base (--budget-m 5)
-RHOS = [0.9, 1.0, 1.1]               # parity +/- 10%
+RHOS = [0.9, 1.0, 1.1]               # parity +/- 10% (override with --rhos)
 
 # Neutral process centre (documented fixed settings for this excursion):
 NEUTRAL = dict(order="simultaneous", Tmax=6, theta=0.30,
@@ -71,6 +71,10 @@ def _run_cell(args):
     if not blue or not red:
         return None
     out = monte_carlo(blue, red, NEUTRAL, reps=reps, seed=seed)
+    # Monte-Carlo standard errors for the two headline responses.
+    out["logfer_se"] = out["logfer_sd"] / np.sqrt(reps)
+    out["p_victory_se"] = np.sqrt(max(out["p_victory"] * (1 - out["p_victory"]), 0) / reps)
+    out["reps"] = reps
     return {"blue_mix": blab, "red_mix": rlab, "rho": rho,
             "blue_i": bi, "red_i": ri,
             "s_L_b": bshares[0], "s_M_b": bshares[1], "s_H_b": bshares[2],
@@ -140,21 +144,37 @@ def analyse(df, ref_budget):
                  f"{anti:.3f} (Monte-Carlo noise only).")
 
     # --- pure-vs-pure 3x3: dominance or rock-paper-scissors? ---
+    # Each cell is one Monte-Carlo estimate, so the honest uncertainty is the MC
+    # standard error of its own log-FER (sd/sqrt(reps)); a pairing counts as
+    # decided only when the 95% CI clears zero (lesson from the FIG5 review:
+    # never read a sign off a point estimate without its interval).
     pures = ["L", "M", "H"]
     sub = F.loc[pures, pures]
-    beats = {(b, r): sub.loc[b, r] > 0 for b in pures for r in pures if b != r}
+    SE = par.pivot(index="blue_mix", columns="red_mix",
+                   values="logfer_se").reindex(index=MIX_LABELS, columns=MIX_LABELS)
+    decided, undec = {}, []
+    for b in pures:
+        for r in pures:
+            if b == r:
+                continue
+            est, ci = sub.loc[b, r], 1.96 * SE.loc[b, r]
+            decided[(b, r)] = (est > 0) if abs(est) > ci else None
+            if decided[(b, r)] is None:
+                undec.append(f"{b} vs {r}")
     cyc = ""
-    for a, b, c in [("L", "M", "H"), ("L", "H", "M")]:
-        if beats[(a, b)] and beats[(b, c)] and beats[(c, a)]:
-            cyc = f"CYCLE: {a} beats {b}, {b} beats {c}, {c} beats {a} (rock-paper-scissors)."
+    if all(v is not None for v in decided.values()):
+        for a, b, c in [("L", "M", "H"), ("L", "H", "M")]:
+            if decided[(a, b)] and decided[(b, c)] and decided[(c, a)]:
+                cyc = f"CYCLE: {a} beats {b}, {b} beats {c}, {c} beats {a} (rock-paper-scissors)."
     if not cyc:
-        wins = {p: sum(beats[(p, q)] for q in pures if q != p) for p in pures}
+        wins = {p: sum(1 for q in pures if q != p and decided[(p, q)]) for p in pures}
         best = max(wins, key=wins.get)
-        cyc = (f"no cycle among pure fleets; pairwise wins {wins} -> "
-               f"'{best}' is the strongest pure composition at parity.")
-    notes.append(f"PURE 3x3 (log-FER): " + "; ".join(
-        f"{b} vs {r}: {sub.loc[b, r]:+.2f}" for b in pures for r in pures if b != r)
-        + f". {cyc}")
+        cyc = (f"no significant cycle among pure fleets; decided pairwise wins {wins} -> "
+               f"'{best}' is the strongest pure composition at parity"
+               + (f" (undecided at 95% CI: {', '.join(undec)})" if undec else ""))
+    notes.append("PURE 3x3 (log-FER +/- 95% MC CI): " + "; ".join(
+        f"{b} vs {r}: {sub.loc[b, r]:+.2f}+/-{1.96*SE.loc[b, r]:.2f}"
+        for b in pures for r in pures if b != r) + f". {cyc}")
 
     # --- dominance over the full 10x10 ---
     row_mean = P.mean(axis=1).sort_values(ascending=False)
@@ -169,18 +189,24 @@ def analyse(df, ref_budget):
     notes.append("BLUE best response by Red mix: "
                  + ", ".join(f"vs {r}: {br[r]} ({P[r].max():.2f})" for r in MIX_LABELS) + ".")
 
-    # --- budget sensitivity: +/-10% vs composition choice ---
-    by_rho = df.groupby("rho").p_victory.mean()
+    # --- budget sensitivity: only meaningful when rho actually varies ---
     spread_mix = row_mean.iloc[0] - row_mean.iloc[-1]
-    budget_eff = by_rho[1.1] - by_rho[0.9]
-    verdict = ("the composition choice outweighs a 10% budget edge"
-               if spread_mix > budget_eff else
-               "a 10% budget edge outweighs the composition choice")
-    notes.append(f"BUDGET vs DESIGN: mean P(vict) rises {by_rho[0.9]:.2f} -> "
-                 f"{by_rho[1.0]:.2f} -> {by_rho[1.1]:.2f} across rho 0.9->1.1 "
-                 f"(+/-10% budget ~ {budget_eff:+.2f}), while the composition "
-                 f"choice spans {spread_mix:.2f} at fixed parity — {verdict} "
-                 f"in this regime.")
+    if {0.9, 1.1} <= set(df.rho.unique()):
+        by_rho = df.groupby("rho").p_victory.mean()
+        budget_eff = by_rho[1.1] - by_rho[0.9]
+        verdict = ("the composition choice outweighs a 10% budget edge"
+                   if spread_mix > budget_eff else
+                   "a 10% budget edge outweighs the composition choice")
+        notes.append(f"BUDGET vs DESIGN: mean P(vict) rises {by_rho[0.9]:.2f} -> "
+                     f"{by_rho[1.0]:.2f} -> {by_rho[1.1]:.2f} across rho 0.9->1.1 "
+                     f"(+/-10% budget ~ {budget_eff:+.2f}), while the composition "
+                     f"choice spans {spread_mix:.2f} at fixed parity — {verdict} "
+                     f"in this regime.")
+    else:
+        notes.append(f"STRICT PARITY (rho = {sorted(df.rho.unique())}): both sides "
+                     f"always hold the same budget, so the outcome is driven by "
+                     f"composition alone; the composition choice spans "
+                     f"{spread_mix:.2f} in mean P(vict).")
     return P, F, notes
 
 
@@ -241,12 +267,18 @@ def main():
                      help="Reference budget in M-hull equivalents (default 5 = "
                           "the spec sec-6 base, 35.2; use 10 for the enlarged "
                           "70.3 budget that reduces integer-fleet quantization).")
+    ap.add_argument("--rhos", type=float, nargs="+", default=None,
+                     help="Blue/Red budget ratios to run (default 0.9 1.0 1.1). "
+                          "Pass '--rhos 1.0' for the strict-parity design, where "
+                          "both sides always hold the same budget.")
     ap.add_argument("--out-prefix", default=None,
                      help="Prefix for output files. Default: legacy names "
                           "(fig6_/fig7_/cross_*) when --budget-m 5, else "
                           "'crossN' derived from --budget-m.")
     args = ap.parse_args()
 
+    if args.rhos:
+        RHOS[:] = sorted(args.rhos)
     ref_budget = args.budget_m * M_COST
     if args.out_prefix is None:
         legacy = abs(args.budget_m - 5.0) < 1e-9
@@ -270,7 +302,10 @@ def main():
 
     P, F, notes = analyse(df, ref_budget)
     fig_cross_matrix(P, F, out=names["matrix"], budget_label=blabel)
-    fig_budget_sensitivity(df, out=names["budget"], budget_label=blabel)
+    if len(RHOS) > 1:
+        fig_budget_sensitivity(df, out=names["budget"], budget_label=blabel)
+    else:
+        names["budget"] = "(skipped — single budget ratio)"
     with open(names["summary"], "w") as f:
         f.write(f"# Cross-composition excursion ({args.reps} reps/cell, "
                 f"parity ±10%, reference budget {args.budget_m:g}×M = "
