@@ -68,7 +68,10 @@ st.markdown(
       artilharia costeira e minas costeiras;
     - **cibernético-eletromagnético** (X) — efeitos cibernéticos e
       de guerra eletrônica, decompostos em quatro sub-tipos
-      funcionais (C2, sensores, armas e logística).
+      funcionais (C2, sensores, armas e logística). O artigo de
+      origem denota este domínio por *y*; o aplicativo e o pacote
+      `naval_salvo` adotam **X**, preservando o conjunto canônico
+      D = {{S, U, A, C, X}}.
 
     A interação entre domínios é mediada por uma **matriz de
     admissibilidade** 5×5, que codifica em três níveis quais pares
@@ -96,12 +99,19 @@ st.markdown(
     e a sua flexibilização é um ponto natural para evolução futura
     do aplicativo.
 
-    O regime de combate é **pulsado simultâneo**: a cada salva, os
-    dois lados calculam suas perdas com base no estado pré-salva e
-    aplicam o resultado em conjunto. Esta é a convenção adotada por
-    Hughes (1995), Johns-Pilnick-Hughes (2001) e Armstrong (2005). A
-    variante de trocas sequenciais (Armstrong 2014) não está
-    implementada nesta versão.
+    O regime de combate do modelo determinístico é **pulsado
+    simultâneo**: a cada salva, os dois lados calculam suas perdas com
+    base no estado pré-salva e aplicam o resultado em conjunto. Esta é
+    a convenção adotada por Hughes (1995), Johns-Pilnick-Hughes (2001)
+    e Armstrong (2005), e é também o alcance do artigo de origem, que
+    cobre o caso determinístico simultâneo.
+
+    A variante de **trocas sequenciais** (Armstrong 2014) — em que o
+    fogo de retorno é executado apenas pelos sobreviventes da primeira
+    salva — está implementada na página **Salva Estocástica**, junto
+    com a versão estocástica do modelo (Armstrong 2005). Nesse ponto o
+    aplicativo avança além do artigo de origem, que indica ambas as
+    extensões como trabalho futuro.
 
     A dedução completa da formulação, a justificativa das escolhas de
     modelagem e o estudo de caso que a acompanha estão no artigo
