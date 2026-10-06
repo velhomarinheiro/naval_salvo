@@ -43,10 +43,12 @@ st.header("Descrição conceitual do modelo")
 st.success(
     "📄 **Artigo de origem do modelo.** A formulação da Equação de Salva "
     "Multidomínio implementada neste aplicativo foi apresentada em: "
-    "Ferreira Filho, A. (2026). *Modelagem Heterogênea Multidomínio do "
-    "Combate Naval por Equações de Salva*. Anais do SIGE 2026 — Simpósio "
-    "de Aplicações Operacionais em Áreas de Defesa, Instituto Tecnológico "
-    "de Aeronáutica, São José dos Campos, SP. "
+    "Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). *Modelagem "
+    "Heterogênea Multidomínio do Combate Naval por Equações de Salva: "
+    "Aplicações para o Dimensionamento de Força com Foco na Defesa de "
+    "Infraestruturas Críticas do Poder Marítimo*. Anais do SIGE 2026 — "
+    "Simpósio de Aplicações Operacionais em Áreas de Defesa, Instituto "
+    "Tecnológico de Aeronáutica, São José dos Campos, SP. "
     f"[Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL})"
 )
 
@@ -244,12 +246,16 @@ st.markdown(
 
     **Trabalho próprio do autor**
 
-    - Ferreira Filho, A. (2026). Modelagem Heterogênea Multidomínio do
-      Combate Naval por Equações de Salva. *Anais do SIGE 2026 —
+    - Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). Modelagem
+      Heterogênea Multidomínio do Combate Naval por Equações de Salva:
+      Aplicações para o Dimensionamento de Força com Foco na Defesa de
+      Infraestruturas Críticas do Poder Marítimo. *Anais do SIGE 2026 —
       Simpósio de Aplicações Operacionais em Áreas de Defesa*.
       Instituto Tecnológico de Aeronáutica, São José dos Campos, SP.
-      [Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL}) — **artigo que
-      apresenta a formulação implementada neste aplicativo**.
+      Centro de Desenvolvimento Doutrinário de Guerra Naval (CDDGN),
+      Niterói/RJ. [Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL}) —
+      **artigo que apresenta a formulação implementada neste
+      aplicativo**.
     - Araujo, T. M. P. de C.; Ferreira Filho, A.; Santos, M. dos;
       Gomes, C. F. S.; Fróes, B. E. (2025). Apresentação de um
       aplicativo web para auxílio no cálculo de equações de salva.

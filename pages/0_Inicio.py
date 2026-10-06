@@ -98,11 +98,13 @@ st.markdown(
 
 st.success(
     "📄 **Artigo de referência.** A Equação de Salva Multidomínio "
-    "implementada neste aplicativo foi apresentada em: Ferreira Filho, A. "
-    "(2026). *Modelagem Heterogênea Multidomínio do Combate Naval por "
-    "Equações de Salva*. Anais do SIGE 2026 — Simpósio de Aplicações "
-    "Operacionais em Áreas de Defesa, Instituto Tecnológico de "
-    "Aeronáutica, São José dos Campos, SP. "
+    "implementada neste aplicativo foi apresentada em: Ferreira Filho, A.; "
+    "Araujo, T. M. P. de C. (2026). *Modelagem Heterogênea Multidomínio do "
+    "Combate Naval por Equações de Salva: Aplicações para o Dimensionamento "
+    "de Força com Foco na Defesa de Infraestruturas Críticas do Poder "
+    "Marítimo*. Anais do SIGE 2026 — Simpósio de Aplicações Operacionais em "
+    "Áreas de Defesa, Instituto Tecnológico de Aeronáutica, São José dos "
+    "Campos, SP. "
     f"[Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL})"
 )
 
