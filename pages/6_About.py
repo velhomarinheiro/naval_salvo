@@ -43,8 +43,10 @@ st.header("Conceptual description of the model")
 st.success(
     "📄 **Source paper for the model.** The formulation of the "
     "Multi-Domain Salvo Equation implemented in this application was "
-    "presented in: Ferreira Filho, A. (2026). *Modelagem Heterogênea "
-    "Multidomínio do Combate Naval por Equações de Salva*. Proceedings of "
+    "presented in: Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). "
+    "*Modelagem Heterogênea Multidomínio do Combate Naval por Equações de "
+    "Salva: Aplicações para o Dimensionamento de Força com Foco na Defesa "
+    "de Infraestruturas Críticas do Poder Marítimo*. Proceedings of "
     "SIGE 2026 — Symposium on Operational Applications in Defence Areas, "
     "Aeronautics Institute of Technology (ITA), São José dos Campos, SP, "
     f"Brazil. [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})"
@@ -239,14 +241,18 @@ st.markdown(
 
     **Author's own work**
 
-    - Ferreira Filho, A. (2026). Modelagem Heterogênea Multidomínio do
-      Combate Naval por Equações de Salva [Heterogeneous Multi-Domain
-      Modelling of Naval Combat by Salvo Equations]. *Proceedings of
-      SIGE 2026 — Symposium on Operational Applications in Defence
-      Areas*. Aeronautics Institute of Technology (ITA), São José dos
-      Campos, SP, Brazil.
-      [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL}) —
-      **the paper presenting the formulation implemented in this
+    - Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). Modelagem
+      Heterogênea Multidomínio do Combate Naval por Equações de Salva:
+      Aplicações para o Dimensionamento de Força com Foco na Defesa de
+      Infraestruturas Críticas do Poder Marítimo [Heterogeneous
+      Multi-Domain Modelling of Naval Combat by Salvo Equations:
+      Applications to Force Sizing Focused on the Defence of Critical
+      Maritime Power Infrastructure]. *Proceedings of SIGE 2026 —
+      Symposium on Operational Applications in Defence Areas*.
+      Aeronautics Institute of Technology (ITA), São José dos Campos,
+      SP, Brazil. Naval Warfare Doctrine Development Centre (CDDGN),
+      Niterói/RJ. [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})
+      — **the paper presenting the formulation implemented in this
       application**.
     - Araujo, T. M. P. de C.; Ferreira Filho, A.; Santos, M. dos;
       Gomes, C. F. S.; Fróes, B. E. (2025). Presentation of a web

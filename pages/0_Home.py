@@ -98,9 +98,11 @@ st.markdown(
 
 st.success(
     "📄 **Reference paper.** The Multi-Domain Salvo Equation implemented "
-    "in this application was presented in: Ferreira Filho, A. (2026). "
-    "*Modelagem Heterogênea Multidomínio do Combate Naval por Equações de "
-    "Salva*. Proceedings of SIGE 2026 — Symposium on Operational "
+    "in this application was presented in: Ferreira Filho, A.; Araujo, "
+    "T. M. P. de C. (2026). *Modelagem Heterogênea Multidomínio do Combate "
+    "Naval por Equações de Salva: Aplicações para o Dimensionamento de "
+    "Força com Foco na Defesa de Infraestruturas Críticas do Poder "
+    "Marítimo*. Proceedings of SIGE 2026 — Symposium on Operational "
     "Applications in Defence Areas, Aeronautics Institute of Technology "
     "(ITA), São José dos Campos, SP, Brazil. "
     f"[Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})"
