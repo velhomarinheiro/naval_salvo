@@ -11,6 +11,16 @@ from __future__ import annotations
 import streamlit as st
 
 
+# Open-access URL of the proceedings; the query string is part of the
+# address published by SIGE and must not be stripped.
+ARTIGO_SIGE_URL = (
+    "https://www.sige.ita.br/edicoes-anteriores/2026/TRABALHOS/Artigos/"
+    "28590%20-%20Modelagem%20Heterog%C3%AAnea%20Multidom%C3%ADnio%20do%20"
+    "Combate%20Naval%20por%20Equa%C3%A7%C3%B5es%20de%20Salva.pdf"
+    "?x58792&_t=1790628745"
+)
+
+
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
@@ -31,7 +41,7 @@ st.markdown("---")
 st.header("Project overview")
 
 st.markdown(
-    """
+    f"""
     This application is an **interactive tool** for exploring the
     *Multi-Domain Salvo Equation* applied to naval scenarios. It allows
     the user to vary force composition parameters, offensive and defensive
@@ -75,9 +85,25 @@ st.markdown(
     Salvo Equation**, which extends the classical formulations to five
     domains — surface, subsurface, air, coastal, and cyber — with a
     cross-domain admissibility matrix and a multiplicative cyber
-    modulator. This extension is described in greater detail on the
-    **About** page.
+    modulator. The formulation was presented at **SIGE 2026** — the
+    Symposium on Operational Applications in Defence Areas, held by the
+    Aeronautics Institute of Technology (ITA), Brazil — in the paper
+    [*Modelagem Heterogênea Multidomínio do Combate Naval por Equações
+    de Salva*]({ARTIGO_SIGE_URL}) (Heterogeneous Multi-Domain Modelling
+    of Naval Combat by Salvo Equations), which is the source reference
+    for the model implemented here. The extension is described in
+    greater detail on the **About** page.
     """
+)
+
+st.success(
+    "📄 **Reference paper.** The Multi-Domain Salvo Equation implemented "
+    "in this application was presented in: Ferreira Filho, A. (2026). "
+    "*Modelagem Heterogênea Multidomínio do Combate Naval por Equações de "
+    "Salva*. Proceedings of SIGE 2026 — Symposium on Operational "
+    "Applications in Defence Areas, Aeronautics Institute of Technology "
+    "(ITA), São José dos Campos, SP, Brazil. "
+    f"[Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})"
 )
 
 st.info(

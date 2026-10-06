@@ -11,6 +11,16 @@ from __future__ import annotations
 import streamlit as st
 
 
+# Open-access URL of the proceedings; the query string is part of the
+# address published by SIGE and must not be stripped.
+ARTIGO_SIGE_URL = (
+    "https://www.sige.ita.br/edicoes-anteriores/2026/TRABALHOS/Artigos/"
+    "28590%20-%20Modelagem%20Heterog%C3%AAnea%20Multidom%C3%ADnio%20do%20"
+    "Combate%20Naval%20por%20Equa%C3%A7%C3%B5es%20de%20Salva.pdf"
+    "?x58792&_t=1790628745"
+)
+
+
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
@@ -30,8 +40,18 @@ st.markdown("---")
 
 st.header("Conceptual description of the model")
 
+st.success(
+    "📄 **Source paper for the model.** The formulation of the "
+    "Multi-Domain Salvo Equation implemented in this application was "
+    "presented in: Ferreira Filho, A. (2026). *Modelagem Heterogênea "
+    "Multidomínio do Combate Naval por Equações de Salva*. Proceedings of "
+    "SIGE 2026 — Symposium on Operational Applications in Defence Areas, "
+    "Aeronautics Institute of Technology (ITA), São José dos Campos, SP, "
+    f"Brazil. [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})"
+)
+
 st.markdown(
-    """
+    f"""
     The *Multi-Domain Salvo Equation* implemented in this application is
     an extension of the classical naval salvo equations (Hughes 1995;
     Johns, Pilnick and Hughes 2001) to an operational environment in which
@@ -76,6 +96,11 @@ st.markdown(
     the result jointly. This is the convention adopted by Hughes (1995),
     Johns-Pilnick-Hughes (2001), and Armstrong (2005). The sequential
     exchange variant (Armstrong 2014) is not implemented in this version.
+
+    The full derivation of the formulation, the rationale behind the
+    modelling choices, and the accompanying case study are available in
+    the paper [*Modelagem Heterogênea Multidomínio do Combate Naval por
+    Equações de Salva*]({ARTIGO_SIGE_URL}), presented at SIGE 2026.
     """
 )
 
@@ -166,7 +191,7 @@ st.markdown("---")
 st.header("Bibliographic references")
 
 st.markdown(
-    """
+    f"""
     **Classical salvo equation family**
 
     - Hughes, W. P. (1995). A Salvo Model of Warships in Missile
@@ -214,6 +239,15 @@ st.markdown(
 
     **Author's own work**
 
+    - Ferreira Filho, A. (2026). Modelagem Heterogênea Multidomínio do
+      Combate Naval por Equações de Salva [Heterogeneous Multi-Domain
+      Modelling of Naval Combat by Salvo Equations]. *Proceedings of
+      SIGE 2026 — Symposium on Operational Applications in Defence
+      Areas*. Aeronautics Institute of Technology (ITA), São José dos
+      Campos, SP, Brazil.
+      [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL}) —
+      **the paper presenting the formulation implemented in this
+      application**.
     - Araujo, T. M. P. de C.; Ferreira Filho, A.; Santos, M. dos;
       Gomes, C. F. S.; Fróes, B. E. (2025). Presentation of a web
       application to assist in calculating salvo equations.
