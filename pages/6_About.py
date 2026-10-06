@@ -68,7 +68,9 @@ st.markdown(
       coastal artillery, and coastal mines;
     - **cyber-electromagnetic** (X) — cyber and electronic warfare effects,
       decomposed into four functional sub-types
-      (C2, sensors, weapons, and logistics).
+      (C2, sensors, weapons, and logistics). The source paper denotes
+      this domain by *y*; the application and the `naval_salvo` package
+      use **X**, preserving the canonical set D = {{S, U, A, C, X}}.
 
     The interaction between domains is mediated by a **5×5 admissibility
     matrix**, which encodes at three levels which attacker-defender pairs
@@ -93,11 +95,19 @@ st.markdown(
     emission silence). This choice is debatable, and relaxing it is a
     natural point for future evolution of the application.
 
-    The combat regime is **simultaneous pulsed**: at each salvo, both
-    sides calculate their losses based on the pre-salvo state and apply
-    the result jointly. This is the convention adopted by Hughes (1995),
-    Johns-Pilnick-Hughes (2001), and Armstrong (2005). The sequential
-    exchange variant (Armstrong 2014) is not implemented in this version.
+    The combat regime of the deterministic model is **simultaneous
+    pulsed**: at each salvo, both sides calculate their losses based on
+    the pre-salvo state and apply the result jointly. This is the
+    convention adopted by Hughes (1995), Johns-Pilnick-Hughes (2001),
+    and Armstrong (2005), and it is also the scope of the source paper,
+    which covers the simultaneous deterministic case.
+
+    The **sequential exchange** variant (Armstrong 2014) — in which
+    return fire is delivered only by the survivors of the first salvo —
+    is implemented on the **Stochastic Salvo** page, alongside the
+    stochastic version of the model (Armstrong 2005). On this point the
+    application goes beyond the source paper, which lists both
+    extensions as future work.
 
     The full derivation of the formulation, the rationale behind the
     modelling choices, and the accompanying case study are available in
