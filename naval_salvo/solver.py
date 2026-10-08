@@ -5,7 +5,7 @@ naval_salvo.solver
 Multi-salvo runner.
 
 Step 4 of the implementation plan introduces *campaigns* of multiple
-salvos -- the basic unit of analysis the SIGE 2026 paper will report on.
+salvos -- the basic unit of analysis the reference paper reports on.
 The deterministic dynamics module (`dynamics/deterministic.py`) gives
 us one salvo at a time; this module wraps it into a sequence with
 trajectory recording, optional dynamic targeting refresh, and

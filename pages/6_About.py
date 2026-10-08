@@ -8,17 +8,13 @@ support, and bibliographic references.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 
-# Open-access URL of the proceedings; the query string is part of the
-# address published by SIGE and must not be stripped.
-ARTIGO_SIGE_URL = (
-    "https://www.sige.ita.br/edicoes-anteriores/2026/TRABALHOS/Artigos/"
-    "28590%20-%20Modelagem%20Heterog%C3%AAnea%20Multidom%C3%ADnio%20do%20"
-    "Combate%20Naval%20por%20Equa%C3%A7%C3%B5es%20de%20Salva.pdf"
-    "?x58792&_t=1790628745"
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ARTIGO_PDF = BASE_DIR / "offline_assets" / "artigo_salva_multidominio.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -46,14 +42,25 @@ st.success(
     "presented in: Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). "
     "*Modelagem Heterogênea Multidomínio do Combate Naval por Equações de "
     "Salva: Aplicações para o Dimensionamento de Força com Foco na Defesa "
-    "de Infraestruturas Críticas do Poder Marítimo*. Proceedings of "
-    "SIGE 2026 — Symposium on Operational Applications in Defence Areas, "
-    "Aeronautics Institute of Technology (ITA), São José dos Campos, SP, "
-    f"Brazil. [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})"
+    "de Infraestruturas Críticas do Poder Marítimo*. Naval Warfare Doctrine "
+    "Development Centre (CDDGN), Niterói/RJ, Brazil."
 )
 
+if ARTIGO_PDF.exists():
+    st.download_button(
+        label="Download the full paper (.pdf, in Portuguese)",
+        data=ARTIGO_PDF.read_bytes(),
+        file_name="artigo_salva_multidominio.pdf",
+        mime="application/pdf",
+    )
+else:
+    st.warning(
+        "Paper file not found yet. "
+        "Add the file at `offline_assets/artigo_salva_multidominio.pdf`."
+    )
+
 st.markdown(
-    f"""
+    """
     The *Multi-Domain Salvo Equation* implemented in this application is
     an extension of the classical naval salvo equations (Hughes 1995;
     Johns, Pilnick and Hughes 2001) to an operational environment in which
@@ -70,7 +77,7 @@ st.markdown(
       decomposed into four functional sub-types
       (C2, sensors, weapons, and logistics). The source paper denotes
       this domain by *y*; the application and the `naval_salvo` package
-      use **X**, preserving the canonical set D = {{S, U, A, C, X}}.
+      use **X**, preserving the canonical set D = {S, U, A, C, X}.
 
     The interaction between domains is mediated by a **5×5 admissibility
     matrix**, which encodes at three levels which attacker-defender pairs
@@ -111,8 +118,7 @@ st.markdown(
 
     The full derivation of the formulation, the rationale behind the
     modelling choices, and the accompanying case study are available in
-    the paper [*Modelagem Heterogênea Multidomínio do Combate Naval por
-    Equações de Salva*]({ARTIGO_SIGE_URL}), presented at SIGE 2026.
+    the source paper, downloadable at the top of this page.
     """
 )
 
@@ -203,7 +209,7 @@ st.markdown("---")
 st.header("Bibliographic references")
 
 st.markdown(
-    f"""
+    """
     **Classical salvo equation family**
 
     - Hughes, W. P. (1995). A Salvo Model of Warships in Missile
@@ -257,13 +263,10 @@ st.markdown(
       Infraestruturas Críticas do Poder Marítimo [Heterogeneous
       Multi-Domain Modelling of Naval Combat by Salvo Equations:
       Applications to Force Sizing Focused on the Defence of Critical
-      Maritime Power Infrastructure]. *Proceedings of SIGE 2026 —
-      Symposium on Operational Applications in Defence Areas*.
-      Aeronautics Institute of Technology (ITA), São José dos Campos,
-      SP, Brazil. Naval Warfare Doctrine Development Centre (CDDGN),
-      Niterói/RJ. [Read the paper (PDF, in Portuguese)]({ARTIGO_SIGE_URL})
-      — **the paper presenting the formulation implemented in this
-      application**.
+      Maritime Power Infrastructure]. Naval Warfare Doctrine Development
+      Centre (CDDGN), Niterói/RJ, Brazil. **The paper presenting the
+      formulation implemented in this application**; the full text is
+      downloadable at the top of this page.
     - Araujo, T. M. P. de C.; Ferreira Filho, A.; Santos, M. dos;
       Gomes, C. F. S.; Fróes, B. E. (2025). Presentation of a web
       application to assist in calculating salvo equations.

@@ -2,7 +2,7 @@
 naval_salvo.scenarios.bacia_campos
 ==================================
 
-Defence of the Campos Basin -- the central case study of the SIGE 2026
+Defence of the Campos Basin -- the central case study of the reference
 paper.
 
 Scope (Phase 1 doc 1.4 §5, Step 4 of the implementation plan):
@@ -96,7 +96,7 @@ we adopt here:
     χ matrix mostly nulls or marginalises) but the Φ modulator that
     re-scales σ and η of opponent's kinetic units.
 
-These are *illustrative* values for proof-of-concept; the SIGE 2026
+These are *illustrative* values for proof-of-concept; the reference
 paper notes they will be refined through MB doctrinal sources in
 follow-on work.  What the scenario demonstrates is *qualitative*:
 the multi-domain coupling effects that single-domain (homogeneous or
