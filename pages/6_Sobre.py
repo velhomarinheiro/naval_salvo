@@ -8,17 +8,13 @@ apoio, e referências bibliográficas.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 
-# URL de acesso aberto aos anais; a query string faz parte do endereço
-# publicado pelo SIGE e não deve ser removida.
-ARTIGO_SIGE_URL = (
-    "https://www.sige.ita.br/edicoes-anteriores/2026/TRABALHOS/Artigos/"
-    "28590%20-%20Modelagem%20Heterog%C3%AAnea%20Multidom%C3%ADnio%20do%20"
-    "Combate%20Naval%20por%20Equa%C3%A7%C3%B5es%20de%20Salva.pdf"
-    "?x58792&_t=1790628745"
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ARTIGO_PDF = BASE_DIR / "offline_assets" / "artigo_salva_multidominio.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -46,14 +42,25 @@ st.success(
     "Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). *Modelagem "
     "Heterogênea Multidomínio do Combate Naval por Equações de Salva: "
     "Aplicações para o Dimensionamento de Força com Foco na Defesa de "
-    "Infraestruturas Críticas do Poder Marítimo*. Anais do SIGE 2026 — "
-    "Simpósio de Aplicações Operacionais em Áreas de Defesa, Instituto "
-    "Tecnológico de Aeronáutica, São José dos Campos, SP. "
-    f"[Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL})"
+    "Infraestruturas Críticas do Poder Marítimo*. Centro de Desenvolvimento "
+    "Doutrinário de Guerra Naval (CDDGN), Niterói/RJ."
 )
 
+if ARTIGO_PDF.exists():
+    st.download_button(
+        label="Baixar o artigo completo (.pdf)",
+        data=ARTIGO_PDF.read_bytes(),
+        file_name="artigo_salva_multidominio.pdf",
+        mime="application/pdf",
+    )
+else:
+    st.warning(
+        "Arquivo do artigo ainda não encontrado. "
+        "Adicione o arquivo em `offline_assets/artigo_salva_multidominio.pdf`."
+    )
+
 st.markdown(
-    f"""
+    """
     A *Equação de Salva Multidomínio* implementada neste aplicativo é
     uma extensão das equações clássicas de salva navais (Hughes 1995;
     Johns, Pilnick e Hughes 2001) para um ambiente operacional em que
@@ -71,7 +78,7 @@ st.markdown(
       funcionais (C2, sensores, armas e logística). O artigo de
       origem denota este domínio por *y*; o aplicativo e o pacote
       `naval_salvo` adotam **X**, preservando o conjunto canônico
-      D = {{S, U, A, C, X}}.
+      D = {S, U, A, C, X}.
 
     A interação entre domínios é mediada por uma **matriz de
     admissibilidade** 5×5, que codifica em três níveis quais pares
@@ -114,9 +121,8 @@ st.markdown(
     extensões como trabalho futuro.
 
     A dedução completa da formulação, a justificativa das escolhas de
-    modelagem e o estudo de caso que a acompanha estão no artigo
-    [*Modelagem Heterogênea Multidomínio do Combate Naval por Equações
-    de Salva*]({ARTIGO_SIGE_URL}), apresentado no SIGE 2026.
+    modelagem e o estudo de caso que a acompanha estão no artigo de
+    origem, disponível para download no início desta página.
     """
 )
 
@@ -208,7 +214,7 @@ st.markdown("---")
 st.header("Referências bibliográficas")
 
 st.markdown(
-    f"""
+    """
     **Família clássica das equações de salva**
 
     - Hughes, W. P. (1995). A Salvo Model of Warships in Missile
@@ -259,13 +265,11 @@ st.markdown(
     - Ferreira Filho, A.; Araujo, T. M. P. de C. (2026). Modelagem
       Heterogênea Multidomínio do Combate Naval por Equações de Salva:
       Aplicações para o Dimensionamento de Força com Foco na Defesa de
-      Infraestruturas Críticas do Poder Marítimo. *Anais do SIGE 2026 —
-      Simpósio de Aplicações Operacionais em Áreas de Defesa*.
-      Instituto Tecnológico de Aeronáutica, São José dos Campos, SP.
-      Centro de Desenvolvimento Doutrinário de Guerra Naval (CDDGN),
-      Niterói/RJ. [Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL}) —
-      **artigo que apresenta a formulação implementada neste
-      aplicativo**.
+      Infraestruturas Críticas do Poder Marítimo. Centro de
+      Desenvolvimento Doutrinário de Guerra Naval (CDDGN), Niterói/RJ.
+      **Artigo que apresenta a formulação implementada neste
+      aplicativo**; o texto completo está disponível para download no
+      início desta página.
     - Araujo, T. M. P. de C.; Ferreira Filho, A.; Santos, M. dos;
       Gomes, C. F. S.; Fróes, B. E. (2025). Apresentação de um
       aplicativo web para auxílio no cálculo de equações de salva.

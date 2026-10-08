@@ -1,7 +1,7 @@
 """
 Tests for naval_salvo.scenarios.bacia_campos.
 
-These verify the cenário central do SIGE 2026 paper: that the engine
+These verify the central scenario of the reference paper: that the engine
 produces sensible, monotone qualitative responses to the sensitivity
 knobs that the paper varies (number of frigates, submarine present,
 number of FPSOs).  Specific numerical values are *not* the point --
