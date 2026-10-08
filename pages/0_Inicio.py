@@ -8,17 +8,13 @@ páginas acessíveis pelo menu lateral.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 
-# URL de acesso aberto aos anais; a query string faz parte do endereço
-# publicado pelo SIGE e não deve ser removida.
-ARTIGO_SIGE_URL = (
-    "https://www.sige.ita.br/edicoes-anteriores/2026/TRABALHOS/Artigos/"
-    "28590%20-%20Modelagem%20Heterog%C3%AAnea%20Multidom%C3%ADnio%20do%20"
-    "Combate%20Naval%20por%20Equa%C3%A7%C3%B5es%20de%20Salva.pdf"
-    "?x58792&_t=1790628745"
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ARTIGO_PDF = BASE_DIR / "offline_assets" / "artigo_salva_multidominio.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +37,7 @@ st.markdown("---")
 st.header("Apresentação do projeto")
 
 st.markdown(
-    f"""
+    """
     Este aplicativo é uma **ferramenta interativa** para a exploração
     da *Equação de Salva Multidomínio* aplicada a cenários navais. Ele
     permite ao usuário variar parâmetros de composição de força,
@@ -86,13 +82,12 @@ st.markdown(
     Salva Multidomínio**, que estende as formulações clássicas para
     cinco domínios — superfície, subsuperfície, ar, costa e cibernético —
     com uma matriz de admissibilidade entre domínios e um modulador
-    cibernético multiplicativo. A formulação foi apresentada no
-    **SIGE 2026** — Simpósio de Aplicações Operacionais em Áreas de
-    Defesa, do Instituto Tecnológico de Aeronáutica — no artigo
-    [*Modelagem Heterogênea Multidomínio do Combate Naval por Equações
-    de Salva*]({ARTIGO_SIGE_URL}), que é a referência de origem do
-    modelo implementado aqui. A extensão está descrita em maior detalhe
-    na aba **Sobre**.
+    cibernético multiplicativo. A formulação está descrita no artigo
+    *Modelagem Heterogênea Multidomínio do Combate Naval por Equações
+    de Salva*, de Ferreira Filho e Araujo (2026), que é a referência de
+    origem do modelo implementado aqui e cujo texto completo pode ser
+    baixado logo abaixo. A extensão está descrita em maior detalhe na
+    aba **Sobre**.
     """
 )
 
@@ -102,11 +97,22 @@ st.success(
     "Araujo, T. M. P. de C. (2026). *Modelagem Heterogênea Multidomínio do "
     "Combate Naval por Equações de Salva: Aplicações para o Dimensionamento "
     "de Força com Foco na Defesa de Infraestruturas Críticas do Poder "
-    "Marítimo*. Anais do SIGE 2026 — Simpósio de Aplicações Operacionais em "
-    "Áreas de Defesa, Instituto Tecnológico de Aeronáutica, São José dos "
-    "Campos, SP. "
-    f"[Acesso ao artigo (PDF)]({ARTIGO_SIGE_URL})"
+    "Marítimo*. Centro de Desenvolvimento Doutrinário de Guerra Naval "
+    "(CDDGN), Niterói/RJ."
 )
+
+if ARTIGO_PDF.exists():
+    st.download_button(
+        label="Baixar o artigo completo (.pdf)",
+        data=ARTIGO_PDF.read_bytes(),
+        file_name="artigo_salva_multidominio.pdf",
+        mime="application/pdf",
+    )
+else:
+    st.warning(
+        "Arquivo do artigo ainda não encontrado. "
+        "Adicione o arquivo em `offline_assets/artigo_salva_multidominio.pdf`."
+    )
 
 st.info(
     "💡 **Sobre a interpretação dos resultados.** Cada simulação "
